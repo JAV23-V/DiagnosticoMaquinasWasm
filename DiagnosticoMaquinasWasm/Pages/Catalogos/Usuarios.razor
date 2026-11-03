@@ -1,0 +1,253 @@
+﻿@page "/Usuarios"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SupabaseService SupabaseService
+@using Microsoft.AspNetCore.Components.Forms
+@inject SesionService SesionService
+
+   <div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+
+<div class="perfil-card">
+
+    <h1 class="perfil-titulo">
+        Mi Perfil
+    </h1>
+
+    <div class="perfil-foto">
+
+                    <img src="@(string.IsNullOrEmpty(usuarioActual.FotoPerfil)
+                         ? "/Images/user-default.png"
+                         : usuarioActual.FotoPerfil)"
+                         class="foto-perfil" />
+
+                    <InputFile OnChange="SeleccionarFoto" />
+    </div>
+
+    <div class="perfil-grid">
+
+        <div class="perfil-campo">
+            <label>Nombre Completo </label>
+                        <input @bind="usuarioActual.NombreCompleto" readonly />
+                    </div>
+
+        <div class="perfil-campo">
+            <label>Correo</label>
+                        <input @bind="usuarioActual.Correo" readonly />
+                    </div>
+
+        <div class="perfil-campo">
+            <label>Área</label>
+                        <input @bind="usuarioActual.Area" readonly />
+                    </div>
+
+        <div class="perfil-campo">
+            <label>Rol</label>
+                        <input @bind="usuarioActual.Rol" readonly />
+                    </div>
+
+        <div class="perfil-campo">
+            <label>Teléfono</label>
+                        <input @bind="usuarioActual.Telefono" />
+                    </div>
+                <div class="perfil-campo">
+
+                    <button class="btn-cambiar-password"
+                            @onclick="TogglePassword">
+
+                        Cambiar contraseña
+
+                    </button>
+
+                </div>
+
+                @if (MostrarPassword)
+                {
+                        <div class="password-card">
+
+                            <div class="perfil-campo">
+
+                                <label>Nueva Contraseña</label>
+
+                                <input type="password"
+                                       @bind="NuevaPassword" />
+                            </div>
+
+                            <div class="perfil-campo">
+
+                                <label>Confirmar Contraseña</label>
+
+                                <input type="password"
+                                       @bind="ConfirmarPassword" />
+                            </div>
+                            
+                            <div class="password-botones">
+
+                                <button class="btn-cancelar-password"
+                                        @onclick="TogglePassword">
+                                    Cancelar
+                                </button>
+
+                                <button class="btn-guardar-password"
+                                        @onclick="ActualizarPassword">
+                                    Actualizar Contraseña
+                                </button>
+
+                            </div>
+                            
+                        </div>
+                }
+                 </div>
+@if (!string.IsNullOrEmpty(MensajePassword))
+{
+    <p class="@ClaseMensajePassword">
+        @MensajePassword
+    </p>
+}
+                @if (!string.IsNullOrEmpty(MensajePerfil))
+                {
+                    <p class="@ClaseMensajePerfil">
+                        @MensajePerfil
+                    </p>
+                }
+                <div class="perfil-botones">
+
+        <button class="btn-cancelar">
+            Cancelar
+        </button>
+
+                    <button class="btn-guardar-perfil"
+                            @onclick="GuardarPerfil">
+                        Guardar
+                    </button>
+
+    </div>
+        </div>
+    </div>
+    </div>
+</div>
+@code {
+
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        MostrarModal = true;
+    }
+
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+    bool MostrarPassword = false;
+
+    void TogglePassword()
+    {
+        MostrarPassword = !MostrarPassword;
+    }
+    private Usuario usuarioActual = new();
+private async Task CargarUsuario()
+{
+    var response =
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Where(x => x.Id == SesionService.UsuarioActual.Id)
+            .Get();
+
+    usuarioActual =
+        response.Models.FirstOrDefault()
+        ?? new Usuario();
+}
+    protected override async Task OnInitializedAsync()
+{
+    await CargarUsuario();
+}
+
+    private async Task GuardarPerfil()
+    {
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Update(usuarioActual);
+
+        MensajePerfil = "Perfil actualizado correctamente";
+        ClaseMensajePerfil = "mensaje-exito";
+        SesionService.UsuarioActual = usuarioActual;
+    }
+    private string? fotoTemporal;
+    private async Task SeleccionarFoto(InputFileChangeEventArgs e)
+    {
+        var archivo = e.File;
+
+        using var stream = archivo.OpenReadStream(5 * 1024 * 1024);
+
+        var ruta = Path.Combine(
+            "wwwroot",
+            "Images",
+            archivo.Name);
+
+        using var fs = new FileStream(ruta, FileMode.Create);
+
+        await stream.CopyToAsync(fs);
+
+        fotoTemporal = $"/Images/{archivo.Name}";
+
+        usuarioActual.FotoPerfil = fotoTemporal;
+    }
+    private string NuevaPassword = "";
+
+    private string ConfirmarPassword = "";
+
+    private string MensajePassword = "";
+    private async Task ActualizarPassword()
+    {
+        if (NuevaPassword != ConfirmarPassword)
+        {
+            MensajePassword = "Las contraseñas no coinciden";
+            ClaseMensajePassword = "mensaje-error";
+            return;
+        }
+
+        usuarioActual.Password = NuevaPassword;
+
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Update(usuarioActual);
+
+        MensajePassword = "Contraseña actualizada correctamente";
+        ClaseMensajePassword = "mensaje-exito";
+
+        NuevaPassword = "";
+        ConfirmarPassword = "";
+    }
+    private string ClaseMensajePassword = "";
+    private string MensajePerfil = "";
+    private string ClaseMensajePerfil = "";
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+}

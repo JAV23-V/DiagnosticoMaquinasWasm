@@ -1,0 +1,148 @@
+﻿@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@using DiagnosticoMaquinas.Models
+@inject SesionService SesionService
+@inject SupabaseService SupabaseService
+
+<aside class="inicio-sidebar">
+
+    <div class="sidebar-top">
+        <h1>
+            DIAGNÓSTICO<br />
+            DE MÁQUINAS
+        </h1>
+
+        <hr class="menu-divider" />
+    </div>
+
+    <div class="sidebar-middle">
+
+            <nav>
+
+                <NavLink href="/inicio" Match="NavLinkMatch.All">
+                    🏠 Inicio
+                </NavLink>
+
+                <NavLink href="/diagnosticos/nuevo">
+                    📋 Nuevo Diagnóstico
+                </NavLink>
+
+                <NavLink href="/historial">
+                    📖 Historial
+                </NavLink>
+
+                <NavLink href="/acciones">
+                    🔨 Acciones Correctivas
+                </NavLink>
+
+@if (SesionService.UsuarioActual.Rol == "Administrador" ||
+     SesionService.UsuarioActual.Rol == "Supervisor")
+            {
+                <NavLink href="/dashboard">
+                    📊 Dashboard
+                </NavLink>
+            }
+
+@if (SesionService.UsuarioActual.Rol == "Administrador" ||
+     SesionService.UsuarioActual.Rol == "Supervisor")
+            {
+                                <div class="menu-catalogos">
+
+                    <button class="catalogos-toggle"
+                            @onclick="ToggleCatalogos">
+
+                        📂 Catálogos
+
+                        <span class="flecha">
+                            @(MostrarCatalogos ? "▼" : "▶")
+                        </span>
+
+                    </button>
+
+                    @if (MostrarCatalogos)
+                    {
+                        <div class="submenu-catalogos">
+
+                            <NavLink href="/Maquinas">
+                                Máquinas
+                            </NavLink>
+
+                            <NavLink href="/Secciones">
+                                Secciones
+                            </NavLink>
+
+                            <NavLink href="/AccionesCatalogo">
+                                Acciones
+                            </NavLink>
+
+                            <NavLink href="/Tecnicos">
+                                Técnicos
+                            </NavLink>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+            @if (SesionService.UsuarioActual.Rol == "Administrador")
+            {
+                <NavLink href="/configuracion">
+                    ⚙️ Configuración
+                </NavLink>
+            }
+
+        </nav>
+
+    </div>
+
+       <div class="sidebar-footer">
+
+        <div class="user-card"
+             @onclick='() => Nav.NavigateTo("/Usuarios")'>
+
+            @if (!string.IsNullOrWhiteSpace(SesionService.UsuarioActual.FotoPerfil))
+            {
+                <img src="@SesionService.UsuarioActual.FotoPerfil"
+                     class="sidebar-avatar" />
+            }
+            else
+            {
+                <img src="/Images/user-default.png"
+                     class="sidebar-avatar" />
+            }
+
+            <span>
+                @SesionService.UsuarioActual.NombreCompleto
+            </span>
+
+            <small>
+                @SesionService.UsuarioActual.Rol
+            </small>
+
+        </div>
+            <hr />
+<a class="logout-link"
+   @onclick="CerrarSesion">
+    Cerrar sesión
+</a>
+ </div>
+</aside>
+
+@code {
+
+    private bool MostrarCatalogos = false;
+
+    private void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+
+    private void CerrarSesion()
+    {
+        SesionService.UsuarioActual = new Usuario();
+
+        Nav.NavigateTo("/");
+    }
+}

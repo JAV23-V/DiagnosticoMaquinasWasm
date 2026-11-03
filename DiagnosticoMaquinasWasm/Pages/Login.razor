@@ -1,0 +1,162 @@
+﻿@page "/"
+@inject NavigationManager Nav
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SupabaseService SupabaseService
+@inject SesionService SesionService
+@inject IJSRuntime JS
+@using Microsoft.JSInterop
+<div class="login-container">
+
+    <div class="login-left">
+    <div class="overlay">
+        <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+        <h1>
+            SISTEMA DE DIAGNÓSTICO<br />
+            DE MÁQUINAS
+        </h1>
+
+        <h2>Área de Corte</h2>
+
+        <div class="gold-line"></div>
+
+        <p class="version-text">
+Versión 1.0 - IT OpEx Ing. Jennifer Valdes
+</p>
+    </div>
+
+</div>
+    <div class="login-card">
+
+        <h2>INICIAR SESIÓN</h2>
+
+        <div class="mb-3">
+
+            <label>Usuario</label>
+
+        <input class="login-input"
+               @bind="Usuario" />
+        </div>
+
+        <div class="mb-3">
+
+            <label>Contraseña</label>
+
+        <input type="password"
+               class="login-input"
+               @bind="Password" />
+
+        </div>
+
+<div class="remember-user">
+
+<input type="checkbox"
+       @bind="RecordarUsuario" />
+
+    <label>
+        Recordar usuario
+    </label>
+
+</div>
+@if (!string.IsNullOrEmpty(MensajeLogin))
+{
+    <p class="mensaje-error">
+        @MensajeLogin
+    </p>
+}
+<button class="btn btn-primary w-100"
+        @onclick="IniciarSesion">
+    Ingresar
+</button>
+
+        <div class="text-center mt-3">
+
+            <a href="/recuperar">
+                ¿Olvidaste tu contraseña?
+            </a>
+
+        </div>
+        <div class="text-center mt-2">
+
+            ¿No tienes cuenta?
+
+            <a href="/registro">
+                Regístrate aquí
+            </a>
+
+        </div>
+    </div>
+
+</div>
+@code
+{
+    private string Usuario = "";
+
+    private string Password = "";
+    private bool RecordarUsuario = false;
+    private string MensajeLogin = "";
+private async Task IniciarSesion()
+{
+        MensajeLogin = "";
+
+    var response =
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Get();
+
+    var usuario =
+        response.Models.FirstOrDefault(x =>
+            x.UsuarioSistema == Usuario &&
+            x.Password == Password &&
+            x.Activo);
+
+    if (usuario is null)
+    {
+        MensajeLogin =
+            "Usuario o contraseña incorrectos";
+
+        return;
+    }
+
+    SesionService.UsuarioActual = usuario;
+
+    if (RecordarUsuario)
+    {
+        await JS.InvokeVoidAsync(
+            "localStorage.setItem",
+            "usuario",
+            Usuario);
+    }
+    else
+    {
+        await JS.InvokeVoidAsync(
+            "localStorage.removeItem",
+            "usuario");
+    }
+        
+   Nav.NavigateTo("/inicio");
+}
+private bool _cargado = false;
+
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+    if (firstRender && !_cargado)
+    {
+        _cargado = true;
+
+        var usuarioGuardado =
+            await JS.InvokeAsync<string>(
+                "localStorage.getItem",
+                "usuario");
+
+        if (!string.IsNullOrEmpty(usuarioGuardado))
+        {
+            Usuario = usuarioGuardado;
+            RecordarUsuario = true;
+
+            StateHasChanged();
+        }
+    }
+}
+}

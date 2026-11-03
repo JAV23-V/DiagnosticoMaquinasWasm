@@ -1,0 +1,391 @@
+﻿@page "/Tecnicos"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SupabaseService SupabaseService
+@inject SesionService SesionService
+
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="inicio-content">
+
+                <div class="inicio-body">
+
+                    <div class="catalogo-container">
+
+                        <h1 class="catalogo-titulo">
+                            Catálogo de Tecnicos/Supervisores
+                        </h1>
+                        <p>Total técnicos: @tecnicos.Count</p>
+                        <p class="catalogo-subtitulo">
+                            Lista de personal de Mantenimiento
+                        </p>
+                        <div class="catalogo-toolbar">
+
+                        <input class="catalogo-busqueda"
+                               @bind="Busqueda"
+                               @bind:event="oninput"
+                               placeholder="Buscar por nombre o puesto" />
+
+                            <button class="btn-filtro">
+                                Filtros
+                            </button>
+
+                            <button class="btn-nueva"
+                                    @onclick="AbrirModal">
+                                + Nuevo Tecnico/Supervisor
+                            </button>
+
+                        </div>
+
+                        <table class="tabla-tecnicos">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Puesto</th>
+                                    <th>Estatus</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                            @foreach (var tecnico in TecnicosPaginados)
+                                {
+                                    <tr>
+
+                                        <td>@tecnico.Id</td>
+
+                                        <td>@tecnico.Nombre</td>
+
+                                        <td>@tecnico.Puesto</td>
+
+                                        <td>
+                                            <span class="@(tecnico.Activo ? "estatus-activo" : "estatus-inactivo")">
+                                                @(tecnico.Activo ? "Activo" : "Inactivo")
+                                            </span>
+                                        </td>
+
+                                        <td class="acciones-col">
+
+                                            <button class="btn-editar"
+                                                    @onclick="() => AbrirEditar(tecnico)">
+                                                ✏️
+                                            </button>
+
+                                            <button class="btn-eliminar"
+                                                    @onclick="() => AbrirEliminar(tecnico)">
+                                                🗑️
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+                        </table>
+                            <div class="paginacion">
+
+                            <button @onclick="PaginaAnterior"
+                                    disabled="@(PaginaActual == 1)">
+                                &lt;
+                            </button>
+
+                                @for (int i = 1; i <= TotalPaginas; i++)
+                                {
+                                    var pagina = i;
+
+                                    <button class="@(PaginaActual == pagina ? "pagina-activa" : "")"
+                                            @onclick="() => CambiarPagina(pagina)">
+                                        @pagina
+                                    </button>
+                                }
+
+                                <button @onclick="PaginaSiguiente"
+                                        disabled="@(PaginaActual == TotalPaginas)">
+                                &gt;
+                                </button>
+
+
+                            </div>
+                    </div>
+
+                    @if (MostrarModal)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-accion">
+
+                                <div class="modal-header">
+
+                                    <h2>
+                                        @(EsEdicion ? "Editar Técnico/Supervisor" : "Nuevo Técnico/Supervisor")
+                                    </h2>
+
+
+                                    <button @onclick="CerrarModal">
+                                        ✕
+                                    </button>
+
+                                </div>
+
+                                <div class="modal-campo">
+                                    <label>Técnico*</label>
+                                    <input @bind="nuevoTecnico.Nombre" />
+                                </div>
+
+                                <div class="modal-campo">
+                                    <label>Puesto*</label>
+                                    <input @bind="nuevoTecnico.Puesto" />
+                                </div>
+
+                                <div class="modal-campo">
+                                    <label>Estatus*</label>
+
+                                    <InputSelect @bind-Value="nuevoTecnico.Activo">
+
+                                        <option value="true">Activo</option>
+                                        <option value="false">Inactivo</option>
+
+                                    </InputSelect>
+                                </div>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarModal">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-guardar"
+                                            @onclick="GuardarOActualizar">
+                                        Guardar Técnico/Supervisor
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    @if (MostrarEliminar)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-confirmacion">
+
+                                <h2>Eliminar Tecnico/Supervisor</h2>
+
+                                <p>
+                                    ¿Está seguro de eliminar este Tecnico/Supervisor?
+                                </p>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarEliminar">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-eliminar"
+                                            @onclick="EliminarTecnico">
+                                        Eliminar
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    <div class="developed-by">
+
+                        <img src="/Images/versigent-logo.png"
+                             class="versigent-logo" />
+                        <span>
+                            Desarrollado por IT OpEx - Ing Jennifer Valdes
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+ </div>
+
+</div>
+@code {
+
+    bool MostrarCatalogos = true;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        nuevoTecnico = new Tecnico();
+
+        EsEdicion = false;
+
+        MostrarModal = true;
+    }
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+    void AbrirEditar()
+    {
+        MostrarModal = true;
+    }
+    bool MostrarEliminar = false;
+
+    void AbrirEliminar(Tecnico tecnico)
+    {
+        tecnicoEliminar = tecnico;
+
+        MostrarEliminar = true;
+    }
+    private async Task EliminarTecnico()
+    {
+        if (tecnicoEliminar is null)
+            return;
+
+        await SupabaseService.Client
+            .From<Tecnico>()
+            .Where(x => x.Id == tecnicoEliminar.Id)
+            .Delete();
+
+        MostrarEliminar = false;
+
+        await CargarTecnicos();
+    }
+    void CerrarEliminar()
+    {
+        MostrarEliminar = false;
+    }
+    private List<Tecnico> tecnicos = new();
+
+    private async Task CargarTecnicos()
+    {
+        var response =
+            await SupabaseService.Client
+                .From<Tecnico>()
+                .Get();
+
+        tecnicos = response.Models
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarTecnicos();
+    }
+    private Tecnico nuevoTecnico = new();
+
+    private bool EsEdicion = false;
+    private async Task GuardarTecnico()
+    {
+        nuevoTecnico.Id = 0;
+
+        await SupabaseService.Client
+            .From<Tecnico>()
+            .Insert(nuevoTecnico);
+
+        MostrarModal = false;
+
+        nuevoTecnico = new Tecnico();
+
+        await CargarTecnicos();
+    }
+    private async Task ActualizarTecnico()
+    {
+        await SupabaseService.Client
+            .From<Tecnico>()
+            .Update(nuevoTecnico);
+
+        MostrarModal = false;
+
+        EsEdicion = false;
+
+        await CargarTecnicos();
+    }
+    private async Task GuardarOActualizar()
+    {
+        if (EsEdicion)
+            await ActualizarTecnico();
+        else
+            await GuardarTecnico();
+    }
+    private void AbrirEditar(Tecnico tecnico)
+    {
+        nuevoTecnico = new Tecnico
+        {
+            Id = tecnico.Id,
+            Nombre = tecnico.Nombre,
+            Puesto = tecnico.Puesto,
+            Activo = tecnico.Activo
+        };
+
+        EsEdicion = true;
+
+        MostrarModal = true;
+    }
+    private Tecnico? tecnicoEliminar;
+    private string Busqueda = "";
+    private IEnumerable<Tecnico> TecnicosFiltrados =>
+    tecnicos.Where(x =>
+        string.IsNullOrWhiteSpace(Busqueda) ||
+        x.Nombre.Contains(Busqueda,
+            StringComparison.OrdinalIgnoreCase) ||
+        x.Puesto.Contains(Busqueda,
+            StringComparison.OrdinalIgnoreCase));
+    private int PaginaActual = 1;
+
+    private int RegistrosPorPagina = 5;
+    private IEnumerable<Tecnico> TecnicosPaginados =>
+    TecnicosFiltrados
+        .Skip((PaginaActual - 1) * RegistrosPorPagina)
+        .Take(RegistrosPorPagina);
+    private int TotalPaginas =>
+(int)Math.Ceiling(
+    TecnicosFiltrados.Count() /
+    (double)RegistrosPorPagina);
+    private void CambiarPagina(int pagina)
+    {
+        PaginaActual = pagina;
+    }
+    private void PaginaAnterior()
+    {
+        if (PaginaActual > 1)
+            PaginaActual--;
+    }
+    private void PaginaSiguiente()
+    {
+        if (PaginaActual < TotalPaginas)
+            PaginaActual++;
+    }
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+}

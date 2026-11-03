@@ -1,0 +1,726 @@
+﻿@page "/Acciones"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@inject SesionService SesionService
+@using DiagnosticoMaquinas.Models
+@inject SupabaseService SupabaseService
+@inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
+@inject ExcelService ExcelService
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="acciones-card">
+
+                <h1 class="acciones-titulo">
+                   Acciones Correctivas
+                </h1>
+
+                <div class="acciones-tabs">
+
+                    <button @onclick='() => CambiarFiltro("Todas")'>
+                        Todas
+                    </button>
+
+                    <button @onclick='() => CambiarFiltro("Mis acciones")'>
+                        Mis acciones
+                    </button>
+
+                    <button @onclick='() => CambiarFiltro("Abiertas")'>
+                        Abiertas
+                    </button>
+
+                    <button @onclick='() => CambiarFiltro("En proceso")'>
+                        En proceso
+                    </button>
+
+                    <button @onclick='() => CambiarFiltro("Cerradas")'>
+                        Cerradas
+                    </button>
+
+                    <button @onclick='() => CambiarFiltro("Vencidas")'>
+                        Vencidas
+                    </button>
+
+                </div>
+
+                <div class="acciones-busqueda">
+
+                    <input placeholder="Buscar por máquina, punto o responsable"
+                           @bind="TextoBusqueda"
+                           @bind:event="oninput" />
+
+                    <button class="btn-nueva-accion" @onclick="AbrirModal">
+                        + Nueva acción
+                    </button>
+                    @if (MostrarModal)
+{
+    <div class="modal-overlay">
+
+        <div class="modal-accion">
+
+            <div class="modal-header">
+
+                <h2>Nueva Acción Correctiva</h2>
+
+                <button @onclick="CerrarModal">✕</button>
+
+            </div>
+
+<div class="modal-grid">
+
+    <div class="modal-campo">
+        <label>Máquina*</label>
+                                        <select @bind="NuevaAccion.MaquinaId">
+
+                                            <option value="0">
+                                                Seleccione...
+                                            </option>
+
+                                            @foreach (var item in Maquinas)
+                                            {
+                                                <option value="@item.Id">
+                                                    @item.Nombre
+                                                </option>
+                                            }
+
+                                        </select>
+    </div>
+
+    <div class="modal-campo">
+        <label>Sección*</label>
+                                        <select @bind="NuevaAccion.SeccionId">
+
+                                            <option value="0">
+                                                Seleccione...
+                                            </option>
+
+                                            @foreach (var item in Secciones)
+                                            {
+                                                <option value="@item.Id">
+                                                    @item.Nombre
+                                                </option>
+                                            }
+
+                                        </select>
+    </div>
+                                    <div class="modal-campo modal-completo">
+
+                                        <label>Punto*</label>
+
+                                        <select @bind="NuevaAccion.Punto">
+
+                                            <option value="">
+                                                Seleccione...
+                                            </option>
+
+                                            @foreach (var punto in PuntosFiltrados)
+                                            {
+                                                <option value="@punto.Codigo">
+                                                    @punto.Codigo - @punto.Nombre
+                                                </option>
+                                            }
+
+                                        </select>
+
+                                    </div>
+    <div class="modal-campo">
+        <label>Tipo de acción*</label>
+                                        <select @bind="NuevaAccion.Accion">
+
+                                            <option value="">
+                                                Seleccione...
+                                            </option>
+
+                                            @foreach (var item in AccionesCatalogo)
+                                            {
+                                                <option value="@item.Nombre">
+                                                    @item.Nombre
+                                                </option>
+                                            }
+
+                                        </select>
+
+    </div>
+
+    <div class="modal-campo">
+        <label>Responsable*</label>
+                                        <select @bind="NuevaAccion.Responsable">
+
+                                            <option value="">
+                                                Seleccione...
+                                            </option>
+
+                                            @foreach (var item in Tecnicos)
+                                            {
+                                                <option value="@item.Nombre">
+                                                    @item.Nombre
+                                                </option>
+                                            }
+
+                                        </select>
+    </div>
+
+    <div class="modal-campo">
+        <label>Fecha compromiso*</label>
+       <input type="date"
+      @bind="NuevaAccion.FechaCompromiso" />
+    </div>
+
+    <div class="modal-campo">
+        <label>Estatus*</label>
+         <select @bind="NuevaAccion.Estatus">
+           <option>Abierta</option>
+       <option>En proceso</option>
+      <option>Cerrada</option>
+       </select>
+    </div>
+
+
+    <div class="modal-campo modal-completo">
+        <label>Comentario*</label>
+         <textarea @bind="NuevaAccion.Comentario">
+        </textarea>
+    </div>
+    <div class="modal-campo modal-completo">
+
+    <label>Adjuntar imagen</label>
+
+    <InputFile OnChange="SeleccionarArchivo" />
+
+</div>
+<div class="modal-botones">
+
+    <button class="btn-modal-cancelar"
+            @onclick="CerrarModal">
+        Cancelar
+    </button>
+
+                                        <button class="btn-modal-guardar"
+                                                @onclick="GuardarAccion">
+                                            Guardar Acción
+                                        </button>
+
+
+</div>
+</div>
+        </div>
+    </div>
+}
+                </div>
+
+                <table class="tabla-acciones">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Máquina</th>
+                            <th>Punto</th>
+                            <th>Accion</th>
+                            <th>Responsable</th>
+                            <th>Fecha Compromiso</th>
+                            <th>Estatus</th>
+                            <th>Acciones</th>
+                            <th>Evidencia</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var item in AccionesPaginadas)
+                        {
+                            <tr>
+
+                                <td>@item.Id</td>
+
+                                <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
+
+                                <td>@item.Maquina</td>
+
+                                <td>@item.Punto</td>
+
+                                <td>@item.Accion</td>
+
+                                <td>@item.Responsable</td>
+
+                                <td>
+                                    @item.FechaCompromiso?.ToString("dd/MM/yyyy")
+                                </td>
+
+                                <td>
+
+                                    @if (item.Estatus == "Abierta")
+                                    {
+                                        <span class="estado-abierta">
+                                            Abierta
+                                        </span>
+                                    }
+                                    else if (item.Estatus == "En proceso")
+                                    {
+                                        <span class="estado-proceso">
+                                            En proceso
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="estado-cerrada">
+                                            Cerrada
+                                        </span>
+                                    }
+                                    @if (item.FechaCompromiso.HasValue &&
+     item.FechaCompromiso.Value.Date < DateTime.Today &&
+     item.Estatus != "Cerrada")
+                                    {
+                                        <span class="estado-vencida">
+                                            Vencida
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.Id.StartsWith("AC-"))
+                                    {
+                                        <button class="btn-editar"
+                                                @onclick="() => EditarAccion(item)">
+                                            ✏️
+                                        </button>
+                                    }
+
+                                </td>
+                                <td>
+
+                                    @if (!string.IsNullOrWhiteSpace(item.EvidenciaUrl))
+                                    {
+                                        <a href="@item.EvidenciaUrl"
+                                           target="_blank">
+                                            📷 Ver
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+
+                                </td>
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+                <div class="acciones-footer">
+
+                    <div class="paginacion">
+
+                        <button @onclick="PaginaAnterior">
+                            &lt;
+                        </button>
+
+                        <button>
+                            @PaginaActual
+                        </button>
+
+                        <button @onclick="PaginaSiguiente">
+                            &gt;
+                        </button>
+
+                    </div>
+
+                    <button class="btn-excel"
+                            @onclick="ExportarAcciones">
+                        Exportar a Excel
+                    </button>
+
+                </div>
+                    <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        MostrarModal = true;
+    }
+
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    private List<AccionGrid> ListaAcciones = new();
+    private List<Maquina> Maquinas = new();
+    private List<Seccion> Secciones = new();
+    private List<AccionCatalogo> AccionesCatalogo = new();
+    private List<Tecnico> Tecnicos = new();
+    private List<PuntoChecklist> Puntos = new();
+    private IEnumerable<PuntoChecklist> PuntosFiltrados =>
+    Puntos.Where(x =>
+        x.SeccionId == NuevaAccion.SeccionId
+        && x.Activo);
+    private async Task CargarAcciones()
+    {
+        var hallazgos = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Get();
+
+        var diagnosticos = await SupabaseService.Client
+            .From<Diagnostico>()
+            .Get();
+
+        var maquinas = await SupabaseService.Client
+            .From<Maquina>()
+            .Get();
+
+        ListaAcciones = hallazgos.Models
+            .Where(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A")
+            .Select(x =>
+            {
+                var diagnostico = diagnosticos.Models
+                    .FirstOrDefault(d =>
+                        d.Id == x.DiagnosticoId);
+
+                var maquina = maquinas.Models
+                    .FirstOrDefault(m =>
+                        m.Id == diagnostico?.MaquinaId);
+                
+                return new AccionGrid
+                {
+                    Id = $"H-{x.Id}",
+
+                    Fecha = x.FechaCreacion,
+
+                    Maquina = maquina?.Nombre ?? "",
+
+                    Punto = x.Punto,
+
+                    Accion = x.Estatus,
+
+                    Responsable = x.Responsable,
+
+                    FechaCompromiso = x.FechaCompromiso,
+
+                    Estatus = "Abierta",
+
+                    EvidenciaUrl = ""
+                };
+            })
+            .OrderByDescending(x => x.Fecha)
+            .ToList();
+
+        var maquinasResponse = await SupabaseService.Client
+.From<Maquina>()
+.Get();
+
+        Maquinas = maquinasResponse.Models;
+
+        var accionesManuales = await SupabaseService.Client
+    .From<AccionCorrectiva>()
+    .Get();
+
+        var seccionesResponse = await SupabaseService.Client
+    .From<Seccion>()
+    .Get();
+
+        Secciones = seccionesResponse.Models;
+
+        var puntosResponse = await SupabaseService.Client
+    .From<PuntoChecklist>()
+    .Get();
+
+        Puntos = puntosResponse.Models;
+
+        var accionesResponse = await SupabaseService.Client
+    .From<AccionCatalogo>()
+    .Get();
+
+        AccionesCatalogo = accionesResponse.Models;
+
+        var tecnicosResponse = await SupabaseService.Client
+    .From<Tecnico>()
+    .Get();
+
+        Tecnicos = tecnicosResponse.Models;
+        ListaAcciones = ListaAcciones
+    .OrderByDescending(x => x.Fecha)
+    .ToList();
+        foreach (var accion in accionesManuales.Models)
+        {
+            var maquina = maquinas.Models
+                .FirstOrDefault(x => x.Id == accion.MaquinaId);
+
+            ListaAcciones.Add(new AccionGrid
+            {
+                Id = $"AC-{accion.Id}",
+
+                Fecha = accion.FechaCompromiso ?? DateTime.Today,
+
+                Maquina = maquina?.Nombre ?? "",
+
+                Punto = string.IsNullOrWhiteSpace(accion.Punto)
+                    ? "-"
+                    : accion.Punto,
+
+                Accion = accion.Accion,
+
+                Responsable = accion.Responsable,
+
+                FechaCompromiso = accion.FechaCompromiso,
+
+                Estatus = accion.Estatus,
+
+                EvidenciaUrl = accion.EvidenciaUrl
+            });
+        }
+        ListaAcciones = ListaAcciones
+    .OrderByDescending(x => x.FechaCompromiso ?? x.Fecha)
+
+    .ToList();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        if (SesionService.UsuarioActual.Id == 0)
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        await CargarAcciones();
+
+    }
+    private AccionCorrectiva NuevaAccion = new();
+    private async Task GuardarAccion()
+    {
+        if (ArchivoSeleccionado != null)
+{
+    var nombreArchivo =
+        $"{Guid.NewGuid()}_{ArchivoSeleccionado.Name}";
+
+    using var stream =
+        ArchivoSeleccionado.OpenReadStream(
+            maxAllowedSize: 10 * 1024 * 1024);
+
+    using var memoryStream = new MemoryStream();
+
+    await stream.CopyToAsync(memoryStream);
+
+    memoryStream.Position = 0;
+
+    await SupabaseService.Client.Storage
+        .From("evidencias")
+        .Upload(
+            memoryStream.ToArray(),
+            nombreArchivo);
+
+    NuevaAccion.EvidenciaUrl =
+        SupabaseService.Client.Storage
+            .From("evidencias")
+            .GetPublicUrl(nombreArchivo);
+}
+            if (ModoEdicion)
+        {
+            await SupabaseService.Client
+                .From<AccionCorrectiva>()
+                .Where(x => x.Id == NuevaAccion.Id)
+                .Update(NuevaAccion);
+        }
+        else
+        {
+            await SupabaseService.Client
+                .From<AccionCorrectiva>()
+                .Insert(NuevaAccion);
+        }
+
+        ModoEdicion = false;
+        NuevaAccion = new();
+
+        MostrarModal = false;
+
+        await CargarAcciones();
+    }
+    private string FiltroActual = "Todas";
+
+    private string TextoBusqueda = "";
+    private void CambiarFiltro(string filtro)
+    {
+        FiltroActual = filtro;
+    }
+    private IEnumerable<AccionGrid> AccionesFiltradas =>
+    ListaAcciones
+        .Where(x =>
+            string.IsNullOrWhiteSpace(TextoBusqueda) ||
+
+            x.Maquina.Contains(
+                TextoBusqueda,
+                StringComparison.OrdinalIgnoreCase)
+
+            ||
+
+            x.Punto.Contains(
+                TextoBusqueda,
+                StringComparison.OrdinalIgnoreCase)
+
+            ||
+
+            x.Responsable.Contains(
+                TextoBusqueda,
+                StringComparison.OrdinalIgnoreCase))
+        .Where(x =>
+        {
+            return FiltroActual switch
+            {
+                "Mis acciones" =>
+                    x.Responsable ==
+                    SesionService.UsuarioActual.NombreCompleto,
+
+                "Abiertas" =>
+                    x.Estatus == "Abierta",
+
+                "En proceso" =>
+                    x.Estatus == "En proceso",
+
+                "Cerradas" =>
+                    x.Estatus == "Cerrada",
+
+                "Vencidas" =>
+                    x.FechaCompromiso.HasValue
+                    &&
+                    x.FechaCompromiso.Value.Date <
+                    DateTime.Today
+                    &&
+                    x.Estatus != "Cerrada",
+
+                _ => true
+            };
+        });
+    private bool ModoEdicion = false;
+    private void EditarAccion(AccionGrid item)
+    {
+        ModoEdicion = true;
+
+        MostrarModal = true;
+
+        NuevaAccion.Id =
+            long.Parse(item.Id.Replace("AC-", ""));
+
+        NuevaAccion.Punto = item.Punto;
+
+        NuevaAccion.Accion = item.Accion;
+
+        NuevaAccion.Responsable = item.Responsable;
+
+        NuevaAccion.FechaCompromiso =
+            item.FechaCompromiso;
+
+        NuevaAccion.Estatus =
+            item.Estatus;
+    }
+    private int PaginaActual = 1;
+
+    private int RegistrosPorPagina = 10;
+    private IEnumerable<AccionGrid> AccionesPaginadas =>
+    AccionesFiltradas
+        .Skip((PaginaActual - 1) * RegistrosPorPagina)
+        .Take(RegistrosPorPagina);
+    private void PaginaAnterior()
+    {
+        if (PaginaActual > 1)
+            PaginaActual--;
+    }
+
+    private void PaginaSiguiente()
+    {
+        var totalPaginas =
+            (int)Math.Ceiling(
+                AccionesFiltradas.Count()
+                / (double)RegistrosPorPagina);
+
+        if (PaginaActual < totalPaginas)
+            PaginaActual++;
+    }
+  private async Task ExportarAcciones()
+{
+    using var workbook = new ClosedXML.Excel.XLWorkbook();
+
+    var ws = workbook.Worksheets.Add("Acciones");
+
+    ws.Cell(1, 1).Value = "ID";
+    ws.Cell(1, 2).Value = "Máquina";
+    ws.Cell(1, 3).Value = "Punto";
+    ws.Cell(1, 4).Value = "Acción";
+    ws.Cell(1, 5).Value = "Responsable";
+    ws.Cell(1, 6).Value = "Fecha Compromiso";
+    ws.Cell(1, 7).Value = "Estatus";
+
+    int fila = 2;
+
+    foreach (var item in AccionesFiltradas)
+    {
+        ws.Cell(fila, 1).Value = item.Id;
+        ws.Cell(fila, 2).Value = item.Maquina;
+        ws.Cell(fila, 3).Value = item.Punto;
+        ws.Cell(fila, 4).Value = item.Accion;
+        ws.Cell(fila, 5).Value = item.Responsable;
+        ws.Cell(fila, 6).Value =
+            item.FechaCompromiso?.ToString("dd/MM/yyyy");
+        ws.Cell(fila, 7).Value = item.Estatus;
+
+        fila++;
+    }
+
+    ws.Columns().AdjustToContents();
+
+    using var stream = new MemoryStream();
+
+    workbook.SaveAs(stream);
+
+var archivo = stream.ToArray();
+
+var base64 =
+    Convert.ToBase64String(archivo);
+
+await JS.InvokeVoidAsync(
+    "downloadFile",
+    "AccionesCorrectivas.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    base64);
+}
+private IBrowserFile? ArchivoSeleccionado;
+private void SeleccionarArchivo(
+    InputFileChangeEventArgs e)
+{
+    ArchivoSeleccionado = e.File;
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+}

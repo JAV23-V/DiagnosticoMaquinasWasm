@@ -1,0 +1,535 @@
+﻿@page "/Secciones"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SupabaseService SupabaseService
+@inject SesionService SesionService
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="inicio-content">
+
+                <div class="inicio-body">
+
+                    <div class="catalogo-container">
+
+                        <h1 class="catalogo-titulo">
+                            Catálogo de Secciones
+                        </h1>
+                        <p>Total secciones: @secciones.Count</p>
+                        <p class="catalogo-subtitulo">
+                            Administrar secciones del checklist
+                        </p>
+
+                        <div class="catalogo-toolbar">
+
+                            <input class="catalogo-busqueda"
+                                   @bind="Busqueda"
+                                   @bind:event="oninput"
+                                   placeholder="Buscar por seccion o descripcion" />
+
+                            <button class="btn-filtro">
+                                Buscar
+                            </button>
+
+                            <button class="btn-nueva"
+                                    @onclick="AbrirModal">
+                                + Nueva Seccion
+                            </button>
+
+                        </div>
+
+                        <table class="tabla-secciones">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Seccion</th>
+                                    <th>Descripcion</th>
+                                    <th>Estatus</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var seccion in SeccionesPaginadas)
+                                {
+                                    <tr>
+                                        <td>@seccion.Id</td>
+                                        <td>@seccion.Nombre</td>
+
+                                        <td>@seccion.Descripcion</td>
+
+                                        <td>
+                                            <span class="@(seccion.Activo ? "estatus-activo" : "estatus-inactivo")">
+                                                @(seccion.Activo ? "Activo" : "Inactivo")
+                                            </span>
+                                        </td>
+
+                                        <td class="acciones-col">
+
+                                            <button class="btn-editar"
+                                                    @onclick="() => AbrirEditar(seccion)">
+                                                ✏️
+                                            </button>
+
+                                            <button class="btn-eliminar"
+                                                    @onclick="() => AbrirEliminar(seccion)">
+                                                🗑️
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+                        </table>
+                        <div class="catalogo-footer">
+
+                            <div class="paginacion">
+
+                                <button @onclick="PaginaAnterior"
+                                        disabled="@(PaginaActual == 1)">
+                                    &lt;
+                                </button>
+
+                                @for (int i = 1; i <= TotalPaginas; i++)
+                                {
+                                    var pagina = i;
+
+                                    <button class="@(PaginaActual == pagina ? "pagina-activa" : "")"
+                                            @onclick="() => CambiarPagina(pagina)">
+                                        @pagina
+                                    </button>
+                                }
+
+                                <button @onclick="PaginaSiguiente"
+                                        disabled="@(PaginaActual == TotalPaginas)">
+                                    &gt;
+                                </button>
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                    @if (MostrarModal)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-accion">
+
+                                <div class="modal-header">
+
+                                    <h2>
+                                        @(EsEdicion ? "Editar Sección" : "Nueva Sección")
+                                    </h2>
+
+                                    <button @onclick="CerrarModal">
+                                        ✕
+                                    </button>
+
+                                </div>
+
+                                <div class="modal-grid">
+
+                                    <div class="modal-campo">
+                                        <label>Seccion*</label>
+                                        <input @bind="nuevaSeccion.Nombre" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Descripcion*</label>
+                                        <input @bind="nuevaSeccion.Descripcion" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Estatus*</label>
+                                        <InputSelect @bind-Value="nuevaSeccion.Activo">
+
+                                            <option value="true">Activo</option>
+
+                                            <option value="false">Inactivo</option>
+
+                                        </InputSelect>
+                                    </div>
+                                    @if (EsEdicion)
+                                    {
+                                        <hr />
+
+                                        <h4>Puntos de la sección</h4>
+
+                                            <table class="tabla-puntos">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Código</th>
+                                                        <th>Nombre</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+
+                                                <tbody>
+                                                    @foreach (var punto in puntos)
+                                                    {
+                                                        <tr>
+                                                            <td>@punto.Codigo</td>
+                                                            <td>@punto.Nombre</td>
+
+                                                            <td>
+                                                                <button @onclick="() => EditarPunto(punto)">
+                                                                    ✏️
+                                                                </button>
+
+                                                                <button @onclick="() => EliminarPunto(punto)">
+                                                                    🗑️
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        }
+                                    
+                                    <div class="nuevo-punto">
+
+                                        <InputText @bind-Value="CodigoNuevoPunto"
+                                                   placeholder="Código" />
+
+                                        <InputText @bind-Value="NombreNuevoPunto"
+                                                   placeholder="Nombre" />
+
+                                        <button @onclick="GuardarPunto">
+                                            @(puntoEditando is null
+                                                ? "+ Agregar Punto"
+                                                : "💾 Actualizar Punto")
+                                        </button>
+
+                                    </div>
+                                    
+                                </div>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarModal">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-guardar"
+                                            @onclick="GuardarOActualizar">
+                                        Guardar Sección
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    @if (MostrarEliminar)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-confirmacion">
+
+                                <h2>Eliminar Seccion</h2>
+
+                                <p>
+                                    ¿Está seguro de eliminar esta Seccion?
+                                </p>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarEliminar">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-eliminar"
+                                            @onclick="EliminarSeccion">
+                                        Eliminar
+                                    </button>
+
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    <div class="developed-by">
+
+                        <img src="/Images/versigent-logo.png"
+                             class="versigent-logo" />
+                        <span>
+                            Desarrollado por IT OpEx - Ing Jennifer Valdes
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+
+    bool MostrarCatalogos = true;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        nuevaSeccion = new Seccion();
+
+        EsEdicion = false;
+
+        MostrarModal = true;
+    }
+
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+
+    bool MostrarEliminar = false;
+
+    void CerrarEliminar()
+    {
+        MostrarEliminar = false;
+    }
+    private List<Seccion> secciones = new();
+    private async Task CargarSecciones()
+    {
+        var response =
+            await SupabaseService.Client
+                .From<Seccion>()
+                .Get();
+
+        secciones = response.Models
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarSecciones();
+    }
+    private Seccion nuevaSeccion = new();
+
+    private async Task GuardarSeccion()
+    {
+        await SupabaseService.Client
+            .From<Seccion>()
+            .Insert(nuevaSeccion);
+
+        MostrarModal = false;
+
+        nuevaSeccion = new Seccion();
+        await CargarSecciones();
+    }
+    private bool EsEdicion = false;
+
+    private async Task AbrirEditar(Seccion seccion)
+    {
+            seccionSeleccionada = seccion;
+        nuevaSeccion = new Seccion
+        {
+            Id = seccion.Id,
+            Nombre = seccion.Nombre,
+            Descripcion = seccion.Descripcion,
+            Activo = seccion.Activo
+        };
+
+        EsEdicion = true;
+        MostrarModal = true;
+
+        puntos = (await SupabaseService.Client
+            .From<PuntoChecklist>()
+            .Get())
+            .Models
+            .Where(x => x.SeccionId == seccion.Id)
+            .ToList();
+
+    }
+    private Seccion? seccionEliminar;
+    void AbrirEliminar(Seccion seccion)
+    {
+        seccionEliminar = seccion;
+
+        MostrarEliminar = true;
+    }
+    private async Task EliminarSeccion()
+    {
+        if (seccionEliminar is null)
+            return;
+
+        await SupabaseService.Client
+            .From<Seccion>()
+            .Where(x => x.Id == seccionEliminar.Id)
+            .Delete();
+
+        MostrarEliminar = false;
+
+        await CargarSecciones();
+    }
+    private async Task ActualizarSeccion()
+    {
+        try
+        {
+            Console.WriteLine($"ID={nuevaSeccion.Id}");
+            Console.WriteLine($"Nombre={nuevaSeccion.Nombre}");
+            Console.WriteLine($"Descripcion={nuevaSeccion.Descripcion}");
+            Console.WriteLine($"Activo={nuevaSeccion.Activo}");
+
+            await SupabaseService.Client
+                .From<Seccion>()
+                .Where(x => x.Id == nuevaSeccion.Id)
+                .Update(nuevaSeccion);
+
+            MostrarModal = false;
+
+            EsEdicion = false;
+
+            await CargarSecciones();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
+
+            throw;
+        }
+    }
+    private async Task GuardarOActualizar()
+    {
+        if (EsEdicion)
+            await ActualizarSeccion();
+        else
+            await GuardarSeccion();
+    }
+    private string Busqueda = "";
+    private IEnumerable<Seccion> SeccionesFiltradas =>
+    secciones.Where(x =>
+        string.IsNullOrWhiteSpace(Busqueda) ||
+        x.Nombre.Contains(Busqueda,
+            StringComparison.OrdinalIgnoreCase) ||
+        x.Descripcion.Contains(Busqueda,
+            StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<Seccion> SeccionesPaginadas =>
+SeccionesFiltradas
+.Skip((PaginaActual - 1) * RegistrosPorPagina)
+.Take(RegistrosPorPagina);
+    private int TotalPaginas =>
+        (int)Math.Ceiling(
+            SeccionesFiltradas.Count() /
+            (double)RegistrosPorPagina);
+    private int PaginaActual = 1;
+    private int RegistrosPorPagina = 5;
+    private void CambiarPagina(int pagina)
+    {
+        PaginaActual = pagina;
+    }
+    private void PaginaAnterior()
+    {
+        if (PaginaActual > 1)
+            PaginaActual--;
+    }
+    private void PaginaSiguiente()
+    {
+        if (PaginaActual < TotalPaginas)
+            PaginaActual++;
+    }
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+private List<PuntoChecklist> puntos = new();
+private PuntoChecklist nuevoPunto = new();
+    private Seccion? seccionSeleccionada;
+private string CodigoNuevoPunto = "";
+private string NombreNuevoPunto = "";
+    private async Task GuardarPunto()
+    {
+        if (seccionSeleccionada is null)
+            return;
+
+        if (puntoEditando is not null)
+        {
+            puntoEditando.Codigo = CodigoNuevoPunto;
+            puntoEditando.Nombre = NombreNuevoPunto;
+
+            await SupabaseService.Client
+                .From<PuntoChecklist>()
+                .Where(x => x.Id == puntoEditando.Id)
+                .Update(puntoEditando);
+
+            puntoEditando = null;
+        }
+        else
+        {
+            var punto = new PuntoChecklist
+            {
+                Codigo = CodigoNuevoPunto,
+                Nombre = NombreNuevoPunto,
+                SeccionId = seccionSeleccionada.Id,
+                Activo = true
+            };
+
+            await SupabaseService.Client
+                .From<PuntoChecklist>()
+                .Insert(punto);
+
+            puntos.Add(punto);
+        }
+
+        CodigoNuevoPunto = "";
+        NombreNuevoPunto = "";
+
+        await AbrirEditar(nuevaSeccion);
+
+        StateHasChanged();
+    }
+
+private void AgregarPunto()
+{
+}
+
+    private void EditarPunto(PuntoChecklist punto)
+    {
+        puntoEditando = punto;
+
+        CodigoNuevoPunto = punto.Codigo;
+        NombreNuevoPunto = punto.Nombre;
+    }
+
+private async Task EliminarPunto(PuntoChecklist punto)
+{
+    await SupabaseService.Client
+        .From<PuntoChecklist>()
+        .Where(x => x.Id == punto.Id)
+        .Delete();
+
+    puntos.Remove(punto);
+}
+    private PuntoChecklist? puntoEditando;
+}

@@ -1,0 +1,440 @@
+﻿@page "/Maquinas"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SupabaseService SupabaseService
+@inject SesionService SesionService
+@code {
+
+    private List<Maquina> maquinas = new();
+    private string Busqueda = "";
+    private string _busquedaAnterior = "";
+
+    private void ReiniciarPaginaSiCambioBusqueda()
+    {
+        if (_busquedaAnterior != Busqueda)
+        {
+            PaginaActual = 1;
+            _busquedaAnterior = Busqueda;
+        }
+    }
+    private int PaginaActual = 1;
+    private int RegistrosPorPagina = 10;
+    private IEnumerable<Maquina> MaquinasFiltradas =>
+    maquinas.Where(x =>
+        string.IsNullOrWhiteSpace(Busqueda) ||
+        x.Nombre.Contains(Busqueda,
+            StringComparison.OrdinalIgnoreCase) ||
+        x.Serie.Contains(Busqueda,
+            StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<Maquina> MaquinasPaginadas =>
+    MaquinasFiltradas
+    .Skip((PaginaActual - 1) * RegistrosPorPagina)
+    .Take(RegistrosPorPagina);
+    private int TotalPaginas =>
+    (int)Math.Ceiling(
+        MaquinasFiltradas.Count() /
+        (double)RegistrosPorPagina);
+    private void CambiarPagina(int pagina)
+    {
+        PaginaActual = pagina;
+    }
+    private void PaginaAnterior()
+    {
+        if (PaginaActual > 1)
+            PaginaActual--;
+    }
+    private void PaginaSiguiente()
+    {
+        if (PaginaActual < TotalPaginas)
+            PaginaActual++;
+    }
+    private async Task CargarMaquinas()
+    {
+        var response =
+            await SupabaseService.Client
+                .From<Maquina>()
+                .Get();
+
+        maquinas = response.Models
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMaquinas();
+    }
+    private Maquina nuevaMaquina = new();
+    private bool EsEdicion = false;
+    private void AbrirEditar(Maquina maquina)
+    {
+        nuevaMaquina = new Maquina
+        {
+            Id = maquina.Id,
+            Nombre = maquina.Nombre,
+            Serie = maquina.Serie,
+            Area = maquina.Area,
+            Modelo = maquina.Modelo,
+            Activo = maquina.Activo
+        };
+
+        EsEdicion = true;
+
+        MostrarModal = true;
+    }
+    private async Task ActualizarMaquina()
+    {
+        await SupabaseService.Client
+            .From<Maquina>()
+            .Update(nuevaMaquina);
+
+        MostrarModal = false;
+
+        EsEdicion = false;
+
+        await CargarMaquinas();
+    }
+    private async Task GuardarOActualizar()
+    {
+        if (EsEdicion)
+        {
+            await ActualizarMaquina();
+        }
+        else
+        {
+            await GuardarMaquina();
+        }
+    }
+    private Maquina? maquinaEliminar;
+    private void AbrirEliminar(Maquina maquina)
+    {
+        maquinaEliminar = maquina;
+
+        MostrarEliminar = true;
+    }
+    private async Task EliminarMaquina()
+    {
+        if (maquinaEliminar is null)
+            return;
+
+        await SupabaseService.Client
+            .From<Maquina>()
+            .Where(x => x.Id == maquinaEliminar.Id)
+            .Delete();
+
+        MostrarEliminar = false;
+
+        maquinaEliminar = null;
+
+        await CargarMaquinas();
+    }
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+}
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="inicio-content">
+
+                <div class="inicio-body">
+
+                    <div class="catalogo-container">
+
+                        <h1 class="catalogo-titulo">
+                            Catálogo de Máquinas
+                        </h1>
+                        <p class="catalogo-subtitulo">
+                            Administrar máquinas del área de mantenimiento
+                        </p>
+
+                        <div class="catalogo-toolbar">
+
+                            <input class="catalogo-busqueda"
+                                   @bind="Busqueda"
+                                   @bind:event="oninput"
+                                   placeholder="Buscar por maquina, serie o area..." />
+
+                            <button class="btn-filtro">
+                                Buscar
+                            </button>
+
+                            <button class="btn-nueva"
+                                    @onclick="AbrirModal">
+                                + Nueva Máquina
+                            </button>
+
+                        </div>
+
+                        <table class="tabla-maquinas">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Máquina</th>
+                                    <th>Serie</th>
+                                    <th>Área</th>
+                                    <th>Modelo</th>
+                                    <th>Estatus</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var maquina in maquinas.Where(x =>
+        string.IsNullOrWhiteSpace(Busqueda) ||
+        x.Nombre.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ||
+        x.Serie.Contains(Busqueda, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    <tr>
+
+                                        <td>@maquina.Id</td>
+
+                                        <td>@maquina.Nombre</td>
+
+                                        <td>@maquina.Serie</td>
+
+                                        <td>@maquina.Area</td>
+
+                                        <td>@maquina.Modelo</td>
+
+                                        <td>
+                                            <span class="@(maquina.Activo ? "estatus-activo" : "estatus-inactivo")">
+                                                @(maquina.Activo ? "Activo" : "Inactivo")
+                                            </span>
+                                        </td>
+
+                                        <td class="acciones-col">
+
+                                            <button class="btn-editar"
+                                                    @onclick="() => AbrirEditar(maquina)">
+                                                ✏️
+                                            </button>
+
+                                            <button class="btn-eliminar"
+                                                    @onclick="() => AbrirEliminar(maquina)">
+                                                🗑️
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+
+                                }
+
+                            </tbody>
+                        </table>
+                        <div class="catalogo-footer">
+
+                            <div class="paginacion">
+
+                                <button @onclick="PaginaAnterior"
+                                        disabled="@(PaginaActual == 1)">
+                                    &lt;
+                                </button>
+
+                                @for (int i = 1; i <= TotalPaginas; i++)
+                                {
+                                    var pagina = i;
+
+                                    <button class="@(PaginaActual == pagina ? "pagina-activa" : "")"
+                                            @onclick="() => CambiarPagina(pagina)">
+
+                                        @pagina
+
+                                    </button>
+                                }
+
+                                <button @onclick="PaginaSiguiente"
+                                        disabled="@(PaginaActual == TotalPaginas)">
+                                    &gt;
+                                </button>
+
+                            </div>
+
+                    </div>
+                    </div>
+
+                    @if (MostrarModal)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-accion">
+
+                                <div class="modal-header">
+                                    <h2>
+                                        @(EsEdicion ? "Editar Maquina" : "Nueva Maquina")
+                                    </h2>
+
+                                    <button @onclick="CerrarModal">
+                                        ✕
+                                    </button>
+
+                                </div>
+
+                                <div class="modal-grid">
+
+                                    <div class="modal-campo">
+                                        <label>Máquina*</label>
+                                        <input @bind="nuevaMaquina.Nombre" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Serie*</label>
+                                        <input @bind="nuevaMaquina.Serie" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Área*</label>
+                                        <select @bind="nuevaMaquina.Area">
+
+                                            <option value="">Seleccione área</option>
+
+                                            <option value="Corte">Corte</option>
+
+                                            <option value="LPS">LPS</option>
+
+                                        </select>
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Modelo*</label>
+                                        <input @bind="nuevaMaquina.Modelo" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Estatus*</label>
+                                        <select>
+                                            <option>Activo</option>
+                                            <option>Inactivo</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarModal">
+                                        Cancelar
+                                    </button>
+
+                                <button class="btn-modal-guardar"
+                                            @onclick="GuardarOActualizar">
+                                    Guardar Máquina
+                                </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                                            @if (MostrarEliminar)
+                        {
+                            <div class="modal-overlay">
+
+                                <div class="modal-confirmacion">
+
+                                    <h2>Eliminar Máquina</h2>
+
+                                <p>
+                                    ¿Está seguro de eliminar la máquina
+                                    <strong>@maquinaEliminar?.Nombre</strong>?
+                                </p>
+
+                                    <div class="modal-botones">
+
+                                        <button class="btn-modal-cancelar"
+                                                @onclick="CerrarEliminar">
+                                            Cancelar
+                                        </button>
+
+                                    <button class="btn-modal-eliminar"
+                                            @onclick="EliminarMaquina">
+                                        Eliminar
+                                    </button>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        }
+                    <div class="developed-by">
+
+                        <img src="/Images/versigent-logo.png"
+                             class="versigent-logo" />
+                        <span>
+                            Desarrollado por IT OpEx - Ing Jennifer Valdes
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+    </div>
+</div>
+</div>
+@code {
+    bool MostrarCatalogos = true;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        MostrarModal = true;
+    }
+
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+    void AbrirEditar()
+    {
+        MostrarModal = true;
+    }
+    bool MostrarEliminar = false;
+
+    void AbrirEliminar()
+    {
+        MostrarEliminar = true;
+    }
+
+    void CerrarEliminar()
+    {
+        MostrarEliminar = false;
+    }
+    private async Task GuardarMaquina()
+    {
+        nuevaMaquina.Activo = true;
+
+        await SupabaseService.Client
+            .From<Maquina>()
+            .Insert(nuevaMaquina);
+
+        MostrarModal = false;
+
+        nuevaMaquina = new();
+
+        await CargarMaquinas();
+    }
+}

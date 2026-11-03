@@ -1,0 +1,315 @@
+﻿@page "/diagnosticos/nuevo"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@using DiagnosticoMaquinas.Models
+@inject SesionService SesionService
+@inject SupabaseService SupabaseService
+@using System.Globalization
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-header">
+
+            <div>
+
+                <h1>Nuevo Diagnostico</h1>
+
+            </div>
+
+<div class="fecha-actual">
+
+    @FechaActual
+
+    <br />
+
+    @HoraActual
+
+</div>
+
+        </div>
+<!--cuerpo-->
+        <div class="diagnostico-card">
+
+            <h2 class="subtitulo-diagnostico">
+                Datos Generales
+            </h2>
+
+            <div class="diagnostico-layout">
+
+                <div class="datos-left">
+
+                    <label>Máquina *</label>
+
+                    <InputSelect class="diagnostico-select"
+                                 @bind-Value="maquinaSeleccionadaNombre">
+
+                        <option value="">
+                            Seleccione
+                        </option>
+
+                        @foreach (var nombre in maquinas
+                            .Select(x => x.Nombre)
+                            .Distinct())
+                        {
+                            <option value="@nombre">
+                                @nombre
+                            </option>
+                        }
+
+                    </InputSelect>
+
+                    <label>Número de Serie *</label>
+
+                    <InputSelect class="diagnostico-select"
+                                 @bind-Value="SerieSeleccionada">
+
+                        <option value="">
+                            Seleccione
+                        </option>
+
+                        @foreach (var maquina in SeriesFiltradas)
+                        {
+                            <option value="@maquina.Serie">
+                                @maquina.Serie
+                            </option>
+                        }
+
+                    </InputSelect>
+
+                    <label>Fecha *</label>
+
+                    <InputDate class="diagnostico-input" @bind-Value="nuevoDiagnostico.Fecha" />
+
+                    <label>Técnico *</label>
+
+                    <InputSelect class="diagnostico-select" @bind-Value="nuevoDiagnostico.TecnicoId">
+
+                        <option value="0">
+                            Seleccione
+                        </option>
+
+                        @foreach (var tecnico in tecnicos)
+                        {
+                            <option value="@tecnico.Id">
+                                @tecnico.Nombre
+                            </option>
+                        }
+
+                    </InputSelect>
+                    <label>Supervisor *</label>
+
+                    <InputSelect class="diagnostico-select" @bind-Value="nuevoDiagnostico.SupervisorId">
+
+                        <option value="0">
+                            Seleccione
+                        </option>
+
+                        @foreach (var supervisor in supervisores)
+                        {
+                            <option value="@supervisor.Id">
+                                @supervisor.NombreCompleto
+                            </option>
+                        }
+
+                    </InputSelect>
+
+                </div>
+
+<div class="machine-card">
+
+    @if (!string.IsNullOrWhiteSpace(MaquinaSeleccionada?.ImagenUrl))
+    {
+        <img src="@MaquinaSeleccionada.ImagenUrl"
+             class="machine-image" />
+    }
+    else
+    {
+        <div class="machine-no-image">
+            Sin imagen
+        </div>
+    }
+
+    <h3>@MaquinaSeleccionada?.Nombre</h3>
+
+    <p>@MaquinaSeleccionada?.Modelo</p>
+
+</div>
+
+            </div>
+
+            <div class="configuracion-block">
+
+                <label>Configuración *</label>
+
+                <InputRadioGroup @bind-Value="nuevoDiagnostico.Configuracion">
+
+                    <div class="configuracion-opciones">
+
+                        <label>
+                            <InputRadio Value='"Crimp by Crimp"' />
+                            Crimp by Crimp
+                        </label>
+
+                        <label>
+                            <InputRadio Value='"Crimp by Seal"' />
+                            Crimp by Seal
+                        </label>
+
+                        <label>
+                            <InputRadio Value='"Seal by Seal"' />
+                            Seal by Seal
+                        </label>
+
+                    </div>
+
+                </InputRadioGroup>
+
+            </div>
+          
+
+            <div class="obs-block">
+
+                <label>Observaciones</label>
+
+                <textarea class="diagnostico-textarea"  @bind="nuevoDiagnostico.Observaciones">
+</textarea>
+
+            </div>
+
+            <div class="botones-diagnostico">
+
+                <button class="btn-cancelar"
+                        @onclick='() => Nav.NavigateTo("/inicio")'>
+                    Cancelar
+                </button>
+
+                <button class="btn-iniciar"
+                        @onclick="IniciarDiagnostico">
+                    Iniciar Diagnóstico
+                </button>
+
+            </div>
+                <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+        </div>
+    </div></div>
+@code {
+
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+    private Diagnostico nuevoDiagnostico = new();
+
+    private List<Maquina> maquinas = new();
+
+    private List<Tecnico> tecnicos = new();
+
+    private List<Usuario> supervisores = new();
+    private async Task CargarDatos()
+    {
+        var maquinasResponse =
+            await SupabaseService.Client
+                .From<Maquina>()
+                .Get();
+
+        maquinas = maquinasResponse.Models
+            .Where(x => x.Activo)
+            .ToList();
+
+        var tecnicosResponse =
+            await SupabaseService.Client
+                .From<Tecnico>()
+                .Get();
+
+        tecnicos = tecnicosResponse.Models
+            .Where(x => x.Activo)
+            .ToList();
+
+        var usuariosResponse =
+            await SupabaseService.Client
+                .From<Usuario>()
+                .Get();
+
+        supervisores = usuariosResponse.Models
+            .Where(x =>
+                x.Activo &&
+                x.Rol == "Supervisor")
+            .ToList();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        if (SesionService.UsuarioActual.Id == 0)
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        await CargarDatos();
+
+        nuevoDiagnostico.Fecha = DateTime.Today;
+
+        nuevoDiagnostico.Estatus = "Abierto";
+    }
+    private string SerieSeleccionada = "";
+    private IEnumerable<Maquina> SeriesFiltradas =>
+    maquinas.Where(x =>
+        x.Nombre == maquinaSeleccionadaNombre);
+    private string maquinaSeleccionadaNombre = "";
+    private Maquina? MaquinaSeleccionada =>
+    maquinas.FirstOrDefault(x =>
+        x.Nombre == maquinaSeleccionadaNombre &&
+        x.Serie == SerieSeleccionada);
+    private async Task IniciarDiagnostico()
+    {
+        if (MaquinaSeleccionada is null)
+            return;
+
+        nuevoDiagnostico.MaquinaId = MaquinaSeleccionada.Id;
+
+        nuevoDiagnostico.FechaCreacion = DateTime.Now;
+
+        nuevoDiagnostico.Estatus = "Abierto";
+
+        var resultado = await SupabaseService.Client
+            .From<Diagnostico>()
+            .Insert(nuevoDiagnostico);
+
+        var diagnosticoCreado = resultado.Models.FirstOrDefault();
+
+        if (diagnosticoCreado is not null)
+        {
+             Nav.NavigateTo($"/diagnosticos/checklist/{diagnosticoCreado.Id}");
+    }
+        }
+       private string FechaActual =>
+    DateTime.Now.ToString(
+        "dddd, dd MMMM 'de' yyyy",
+        new CultureInfo("es-MX"));
+
+private string HoraActual =>
+    DateTime.Now.ToString(
+        "hh:mm tt",
+        new CultureInfo("es-MX"));
+}

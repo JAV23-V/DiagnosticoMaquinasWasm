@@ -1,0 +1,385 @@
+﻿@page "/Historial"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@using DiagnosticoMaquinas.Models
+@inject SesionService SesionService
+@inject SupabaseService SupabaseService
+@inject IJSRuntime JS
+@inject ExcelService ExcelService
+
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="historial-card">
+
+                <h1 class="historial-titulo">
+                    Historial de Diagnósticos
+                </h1>
+
+                <div class="historial-filtros">
+
+                    <select @bind="FiltroEstatus">
+                        <option value="Todas">Todas</option>
+                        <option value="Abierta">Abierta</option>
+                        <option value="Finalizado">Finalizado</option>
+                    </select>
+
+<input type="date" @bind="FechaInicio" />
+
+<input type="date" @bind="FechaFin" />
+
+                </div>
+
+                <div class="historial-busqueda">
+
+<input
+    placeholder="Buscar por máquina, ID o responsable"
+    @bind="TextoBusqueda"
+    @bind:event="oninput" />
+
+                </div>
+
+                <table class="tabla-historial">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Máquina</th>
+                            <th>Serie</th>
+                            <th>Responsable</th>
+                            <th>Hallazgos</th>
+                            <th>Avance</th>
+                            <th>Estatus</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+<tbody>
+
+@foreach (var item in DiagnosticosPaginados)
+{
+    <tr>
+
+        <td>
+    D-@item.Id.ToString("0000")
+</td>
+        <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
+        <td>@item.Maquina</td>
+        <td>@item.Serie</td>
+        <td>@item.Responsable</td>
+        <td>@item.Hallazgos</td>
+        <td>@item.Avance%</td>
+
+        <td>
+            @if (item.Finalizado)
+            {
+                <span class="estatus-finalizado">
+                    Finalizado
+                </span>
+            }
+            else
+            {
+                <span class="estatus-abierto">
+                    Abierta
+                </span>
+            }
+        </td>
+
+        <td>
+            @if (item.Finalizado)
+            {
+                <button class="btn-ver"
+                        @onclick="() => VerDiagnostico(item.Id)">
+                    Ver
+                </button>
+            }
+            else
+            {
+                <button class="btn-continuar"
+                        @onclick="() => ContinuarDiagnostico(item.Id)">
+                    Continuar
+                </button>
+            }
+        </td>
+
+    </tr>
+}
+
+</tbody>
+
+                </table>
+
+                <div class="historial-footer">
+
+                    <div class="paginacion">
+
+<button
+    @onclick="PaginaAnterior">
+    &lt;
+</button>
+
+<button>
+    @PaginaActual
+</button>
+
+<button
+    @onclick="PaginaSiguiente">
+   &gt;
+</button>
+
+
+                    </div>
+
+<button class="btn-excel"
+        @onclick="ExportarHistorial">
+    Exportar a Excel
+</button>
+
+                </div>
+                    <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+private List<HistorialDiagnostico> Diagnosticos = new();
+
+private async Task CargarDiagnosticos()
+{
+    var diagnosticosResponse = await SupabaseService.Client
+        .From<Diagnostico>()
+        .Get();
+
+    var maquinasResponse = await SupabaseService.Client
+        .From<Maquina>()
+        .Get();
+
+    var tecnicosResponse = await SupabaseService.Client
+        .From<Tecnico>()
+        .Get();
+
+    var hallazgosResponse = await SupabaseService.Client
+        .From<Hallazgo>()
+        .Get();
+        
+    var accionesResponse = await SupabaseService.Client
+        .From<AccionCorrectiva>()
+        .Get();
+
+    var puntosResponse = await SupabaseService.Client
+        .From<PuntoChecklist>()
+        .Get();
+
+    var totalPuntos = puntosResponse.Models
+        .Count(x => x.Activo);
+
+    Diagnosticos.Clear();
+
+
+    foreach (var diagnostico in diagnosticosResponse.Models)
+    {
+           
+        var maquina = maquinasResponse.Models
+            .FirstOrDefault(x => x.Id == diagnostico.MaquinaId);
+
+        var tecnico = tecnicosResponse.Models
+            .FirstOrDefault(x => x.Id == diagnostico.TecnicoId);
+
+        var hallazgosDiagnostico = hallazgosResponse.Models
+            .Where(x => x.DiagnosticoId == diagnostico.Id)
+            .ToList();
+
+        var totalHallazgos = hallazgosDiagnostico
+            .Count(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A");
+
+var puntosRespondidos = hallazgosDiagnostico.Count();
+
+var puntosOK = hallazgosDiagnostico
+    .Count(x => x.Estatus == "OK");
+
+var puntosNA = hallazgosDiagnostico
+    .Count(x => x.Estatus == "N/A");
+
+var puntosAplicables = totalPuntos - puntosNA;
+
+var avance = puntosAplicables == 0
+    ? 0
+    : (int)(((puntosOK + puntosNA) * 100.0) / totalPuntos);
+
+
+Console.WriteLine(
+    $"Acciones encontradas: {accionesResponse.Models.Count}");
+
+        Diagnosticos.Add(new HistorialDiagnostico
+        {
+            Id = diagnostico.Id,
+            Fecha = diagnostico.Fecha,
+            Maquina = maquina?.Nombre ?? "",
+            Serie = maquina?.Serie ?? "",
+            Responsable = tecnico?.Nombre ?? "",
+            Hallazgos = totalHallazgos,
+            Avance = avance,
+            Finalizado = diagnostico.Finalizado,
+            
+        });
+    }
+
+    Diagnosticos = Diagnosticos
+        .OrderByDescending(x => x.Id)
+        .ToList();
+}
+protected override async Task OnInitializedAsync()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+        return;
+    }
+
+    await CargarDiagnosticos();
+}
+private void VerDiagnostico(long id)
+{
+    Nav.NavigateTo($"/diagnosticos/resumen/{id}");
+}
+
+private void ContinuarDiagnostico(long id)
+{
+    Nav.NavigateTo($"/diagnosticos/checklist/{id}");
+}
+private int PaginaActual = 1;
+private int RegistrosPorPagina = 10;
+
+        private void PaginaAnterior()
+{
+    if (PaginaActual > 1)
+        PaginaActual--;
+}
+
+private void PaginaSiguiente()
+{
+    var totalPaginas =
+        (int)Math.Ceiling(
+            Diagnosticos.Count /
+            (double)RegistrosPorPagina);
+
+    if (PaginaActual < totalPaginas)
+        PaginaActual++;
+}
+private string FiltroEstatus = "Todas";
+private DateTime? FechaInicio;
+private DateTime? FechaFin;
+private string TextoBusqueda = "";
+
+private IEnumerable<HistorialDiagnostico> DiagnosticosFiltrados =>
+    Diagnosticos
+        .Where(x =>
+            FiltroEstatus == "Todas" ||
+            (FiltroEstatus == "Finalizado" && x.Finalizado) ||
+            (FiltroEstatus == "Abierta" && !x.Finalizado))
+        .Where(x =>
+            !FechaInicio.HasValue ||
+            x.Fecha.Date >= FechaInicio.Value.Date)
+        .Where(x =>
+            !FechaFin.HasValue ||
+            x.Fecha.Date <= FechaFin.Value.Date)
+        .Where(x =>
+            string.IsNullOrWhiteSpace(TextoBusqueda) ||
+            x.Maquina.ToLower().Contains(TextoBusqueda.ToLower()) ||
+            x.Responsable.ToLower().Contains(TextoBusqueda.ToLower()) ||
+            x.Id.ToString().Contains(TextoBusqueda));
+
+private IEnumerable<HistorialDiagnostico> DiagnosticosPaginados =>
+    DiagnosticosFiltrados
+        .Skip((PaginaActual - 1) * RegistrosPorPagina)
+        .Take(RegistrosPorPagina);
+ private async Task ExportarHistorial()
+{
+    using var workbook = new ClosedXML.Excel.XLWorkbook();
+
+    var ws = workbook.Worksheets.Add("Historial");
+
+    ws.Cell(1, 1).Value = "ID";
+    ws.Cell(1, 2).Value = "Fecha";
+    ws.Cell(1, 3).Value = "Máquina";
+    ws.Cell(1, 4).Value = "Serie";
+    ws.Cell(1, 5).Value = "Responsable";
+    ws.Cell(1, 6).Value = "Hallazgos";
+    ws.Cell(1, 7).Value = "Avance";
+    ws.Cell(1, 8).Value = "Estatus";
+
+    int fila = 2;
+
+    foreach (var item in DiagnosticosFiltrados)
+    {
+        ws.Cell(fila, 1).Value = item.Id;
+        ws.Cell(fila, 2).Value = item.Fecha.ToString("dd/MM/yyyy");
+        ws.Cell(fila, 3).Value = item.Maquina;
+        ws.Cell(fila, 4).Value = item.Serie;
+        ws.Cell(fila, 5).Value = item.Responsable;
+        ws.Cell(fila, 6).Value = item.Hallazgos;
+        ws.Cell(fila, 7).Value = item.Avance;
+        ws.Cell(fila, 8).Value = item.Finalizado
+            ? "Finalizado"
+            : "Abierta";
+
+        fila++;
+    }
+
+    ws.Columns().AdjustToContents();
+
+    using var stream = new MemoryStream();
+
+    workbook.SaveAs(stream);
+var archivo = stream.ToArray();
+
+var base64 =
+    Convert.ToBase64String(archivo);
+
+await JS.InvokeVoidAsync(
+    "downloadFile",
+    "HistorialDiagnostico.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    base64);
+
+
+}
+}

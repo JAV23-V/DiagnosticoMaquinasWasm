@@ -1,0 +1,284 @@
+﻿@page "/inicio"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@using DiagnosticoMaquinas.Models
+@inject SesionService SesionService
+@inject SupabaseService SupabaseService
+@inject ExcelService ExcelService
+@inject IJSRuntime JS
+<div class="inicio-container">
+
+    <Sidebar />
+
+    <!-- CONTENIDO -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-header">
+
+            <div>
+
+                <h1>Bienvenido, @SesionService.UsuarioActual.NombreCompleto</h1>
+                <p>
+                    Rol: @SesionService.UsuarioActual.Rol |
+                    Área: @SesionService.UsuarioActual.Area
+                </p>
+
+            </div>
+
+            <div class="inicio-fecha">
+
+                @DateTime.Now.ToString("dddd dd MMMM yyyy")<br />
+@DateTime.Now.ToString("HH:mm:ss")
+            </div>
+
+        </div>
+
+        <div class="inicio-body">
+
+            <div class="cards-centro">
+
+                <div class="inicio-card" @onclick='() => Nav.NavigateTo("/diagnosticos/nuevo")'>
+                    <div class="card-icon">📋</div>
+                    <h3>Nuevo Diagnóstico</h3>
+                    <p>Iniciar un nuevo diagnóstico de maquina</p>
+                </div>
+
+                <div class="inicio-card" @onclick='() => Nav.NavigateTo("/acciones")'>
+                    <div class="card-icon">🔧</div>
+                    <h3>Acciones Correctivas</h3>
+                    <p>Ver y dar seguimiento a acciones</p>
+                </div>
+
+                <div class="inicio-card" @onclick='() => Nav.NavigateTo("/historial")'>
+                    <div class="card-icon">📚</div>
+                    <h3>Historial</h3>
+                    <p>Consultar diagnósticos anteriores</p>
+                </div>
+
+                @if (SesionService.UsuarioActual.Rol == "Administrador" ||
+     SesionService.UsuarioActual.Rol == "Supervisor")
+            {
+                <div class="inicio-card"@onclick='() => Nav.NavigateTo("/dashboard")'>
+                    <div class="card-icon">📊</div>
+                    <h3>Dashboard</h3>
+                    <p>Ver indicadores y estadísticas</p>
+                </div>
+            }
+
+               <div class="inicio-card excel-card"
+                   @onclick="ExportarReporteGeneral">
+                    <div class="card-icon">📗</div>
+                    <h3>Exportar a Excel</h3>
+                    <p>Descargar información en formato Excel</p>
+                </div>
+
+            </div>
+
+            <div class="resumen-panel">
+
+                <h3>Resumen General</h3>
+
+                <div class="kpi-grid">
+
+                    <div class="kpi azul">
+                        <span class="kpi-azul">@DiagnosticosMes</span>
+                        <p>Diagnósticos este mes</p>
+                    </div>
+
+                    <div class="kpi rojo">
+                        <span class="kpi-rojo">@AccionesAbiertas</span>
+                        <p>Acciones Abiertas</p>
+                    </div>
+
+                    <div class="kpi verde">
+                        <span class="kpi-verde">@AccionesCerradas</span>
+                        <p>Acciones Cerradas</p>
+                    </div>
+
+                    <div class="kpi amarillo">
+                        <span class="kpi-amarillo">@AccionesVencidas</span>
+                        <p>Acciones Vencidas</p>
+                    </div>
+
+                </div>
+
+                <div class="hallazgos">
+
+    <h4>Máquinas con más hallazgos</h4>
+
+<table class="tabla-maquinas">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Máquina</th>
+            <th>Hallazgos</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @{
+            int posicion = 1;
+        }
+
+        @foreach (var item in TopMaquinas)
+        {
+            <tr>
+                <td>@posicion</td>
+                <td>@item.Maquina</td>
+                <td>@item.Total</td>
+            </tr>
+
+            posicion++;
+        }
+
+    </tbody>
+
+</table>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+</div>
+@code {
+
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+
+    private int DiagnosticosMes;
+    private int AccionesAbiertas;
+    private int AccionesCerradas;
+    private int AccionesVencidas;
+
+    private List<(string Maquina, int Total)> TopMaquinas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SesionService.UsuarioActual.Id == 0)
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        await CargarDashboard();
+    }
+
+    private async Task CargarDashboard()
+    {
+        var diagnosticos = await SupabaseService.Client
+            .From<Diagnostico>()
+            .Get();
+
+        DiagnosticosMes = diagnosticos.Models.Count(x =>
+            x.Fecha.Month == DateTime.Today.Month &&
+            x.Fecha.Year == DateTime.Today.Year);
+
+        var hallazgos = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Get();
+        var accionesManuales = await SupabaseService.Client
+.From<AccionCorrectiva>()
+.Get();
+        AccionesAbiertas =
+            hallazgos.Models.Count(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A")
+            +
+            accionesManuales.Models.Count(x =>
+                x.Estatus != "Cerrada");
+
+        AccionesCerradas =
+            hallazgos.Models.Count(x =>
+                x.Estatus == "OK")
+            +
+            accionesManuales.Models.Count(x =>
+                x.Estatus == "Cerrada");
+
+        AccionesVencidas =
+            hallazgos.Models.Count(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A" &&
+                x.FechaCompromiso.HasValue &&
+                x.FechaCompromiso.Value.Date < DateTime.Today)
+            +
+            accionesManuales.Models.Count(x =>
+                x.Estatus != "Cerrada" &&
+                x.FechaCompromiso.HasValue &&
+                x.FechaCompromiso.Value.Date < DateTime.Today);
+
+        var maquinas = await SupabaseService.Client
+            .From<Maquina>()
+            .Get();
+
+        TopMaquinas = diagnosticos.Models
+            .Join(
+                maquinas.Models,
+                d => d.MaquinaId,
+                m => m.Id,
+                (d, m) => new
+                {
+                    m.Nombre,
+                    DiagnosticoId = d.Id
+                })
+            .Join(
+                hallazgos.Models.Where(h =>
+                    h.Estatus != "OK" &&
+                    h.Estatus != "N/A"),
+                x => x.DiagnosticoId,
+                h => h.DiagnosticoId,
+                (x, h) => x.Nombre)
+            .GroupBy(x => x)
+            .Select(x => (
+                Maquina: x.Key,
+                Total: x.Count()
+            ))
+            .OrderByDescending(x => x.Total)
+            .Take(5)
+            .ToList();
+    }
+
+    private void CerrarSesion()
+    {
+        SesionService.UsuarioActual = new Usuario();
+
+        Nav.NavigateTo("/");
+    }
+    private async Task ExportarReporteGeneral()
+    {
+        var archivo = ExcelService.GenerarReporteGeneral(
+            SesionService.UsuarioActual.NombreCompleto,
+            DiagnosticosMes,
+            AccionesAbiertas,
+            AccionesCerradas,
+            AccionesVencidas,
+            TopMaquinas);
+        var base64 =
+            Convert.ToBase64String(archivo);
+
+        await JS.InvokeVoidAsync(
+            "downloadFile",
+            "ReporteGeneral.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            base64);
+    }
+}
+

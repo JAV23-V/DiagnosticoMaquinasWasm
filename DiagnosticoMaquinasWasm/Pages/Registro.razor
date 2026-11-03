@@ -1,0 +1,84 @@
+﻿@page "/registro"
+
+@inject NavigationManager Nav
+
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+
+@inject SupabaseService SupabaseService
+<div class="login-container">
+
+    <div class="login-card">
+
+        <h2>REGISTRARSE</h2>
+
+        <input class="login-input"
+               placeholder="Usuario"
+               @bind="nuevoUsuario.UsuarioSistema" />
+
+        <input class="login-input"
+               placeholder="Nombre Completo"
+               @bind="nuevoUsuario.NombreCompleto" />
+
+        <input class="login-input"
+               placeholder="Correo"
+               @bind="nuevoUsuario.Correo" />
+
+        <input class="login-input"
+               placeholder="Rol"
+               @bind="nuevoUsuario.Rol" />
+
+        <input class="login-input"
+               placeholder="Área"
+               @bind="nuevoUsuario.Area" />
+
+        <input class="login-input"
+               placeholder="Contraseña"
+               type="password"
+               @bind="nuevoUsuario.Password" />
+
+        @if (!string.IsNullOrEmpty(Mensaje))
+        {
+            <p>@Mensaje</p>
+        }
+
+        <button class="btn btn-primary w-100"
+                @onclick="RegistrarUsuario">
+            Solicitar Acceso
+        </button>
+        <button class="btn btn-secondary w-100 mt-2"
+                @onclick='() => Nav.NavigateTo("/")'>
+            Volver al Login
+        </button>
+
+    </div>
+
+</div>
+@code
+{
+    private Usuario nuevoUsuario = new();
+
+private string Mensaje = "";
+
+private async Task RegistrarUsuario()
+{
+        nuevoUsuario.Activo = false;
+        Console.WriteLine($"Usuario: {nuevoUsuario.UsuarioSistema}");
+        Console.WriteLine($"Nombre: {nuevoUsuario.NombreCompleto}");
+        Console.WriteLine($"Correo: {nuevoUsuario.Correo}");
+        Console.WriteLine($"Area: {nuevoUsuario.Area}");
+        Console.WriteLine($"Password: {nuevoUsuario.Password}");
+
+
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(nuevoUsuario));
+
+    await SupabaseService.Client
+        .From<Usuario>()
+        .Insert(nuevoUsuario);
+
+    Mensaje =
+        "Solicitud enviada. Espere la activación por parte del administrador.";
+
+    nuevoUsuario = new Usuario();
+}
+}

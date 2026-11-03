@@ -1,0 +1,486 @@
+﻿@page "/diagnosticos/resumen/{DiagnosticoId:long}"
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Nav
+@using DiagnosticoMaquinasWasm.Services
+@using DiagnosticoMaquinas.Models
+@inject SesionService SesionService
+@inject SupabaseService SupabaseService
+@inject IJSRuntime JS
+@inject ExcelService ExcelService
+@using System.IO
+
+<div class="inicio-container">    
+<!-- SIDEBAR -->
+
+    <aside class="inicio-sidebar">
+        <div class="sidebar-top">
+            <h1>
+                DIAGNÓSTICO<br />
+                DE MÁQUINAS
+            </h1>
+            <hr class="menu-divider" />
+        </div>
+        <div class="sidebar-middle">
+
+            <nav>
+
+                <NavLink href="/diagnosticos/nuevo">
+                    📋 Nuevo Diagnóstico
+                </NavLink>
+
+                <NavLink href="@($"/diagnosticos/checklist/{DiagnosticoId}")">
+                    ✅ Checklist
+                </NavLink>
+
+                <NavLink href="@($"/diagnosticos/resumen/{DiagnosticoId}")">
+                    📄 Resumen
+                </NavLink>
+
+            </nav>
+        </div>
+       <div class="sidebar-footer">
+
+        <div class="user-card"
+             @onclick='() => Nav.NavigateTo("/Usuarios")'>
+
+            @if (!string.IsNullOrWhiteSpace(SesionService.UsuarioActual.FotoPerfil))
+            {
+                <img src="@SesionService.UsuarioActual.FotoPerfil"
+                     class="sidebar-avatar" />
+            }
+            else
+            {
+                <img src="/Images/user-default.png"
+                     class="sidebar-avatar" />
+            }
+
+            <span>
+                @SesionService.UsuarioActual.NombreCompleto
+            </span>
+
+            <small>
+                @SesionService.UsuarioActual.Rol
+            </small>
+
+        </div>
+            <hr />
+<a class="logout-link"
+   @onclick="CerrarSesion">
+    Cerrar sesión
+</a>
+ </div>
+</aside>
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="resumen-card">
+
+                <h1 class="resumen-titulo">
+                    Resumen del Diagnóstico
+                </h1>
+
+                <div class="resumen-superior">
+
+                    <div class="datos-generales">
+
+                        <h2>Datos generales</h2>
+
+                        <div class="fila-dato">
+                            <strong>Máquina:</strong><span>@MaquinaActual?.Nombre</span>
+                            <strong>Número de serie:</strong><span>@MaquinaActual?.Serie</span>
+                            <strong>Fecha:</strong> <span>@DiagnosticoActual?.Fecha.ToString("dd/MM/yyyy")</span>
+                            <strong>Técnico:</strong><span> @TecnicoActual?.Nombre</span>
+                            <strong>Configuración:</strong><span>@DiagnosticoActual?.Configuracion</span>
+                            <strong>Observaciones:</strong><span>@DiagnosticoActual?.Observaciones</span>
+                        </div>
+
+                    </div>
+
+                    <div class="indicadores">
+
+                        <h2>Indicadores</h2>
+                        <div class="fila-indicador">
+                            <strong>Total de puntos:</strong> <span>@TotalPuntos</span>
+                            <strong>Puntos revisados:</strong><span>@PuntosRevisados</span>
+                            <strong>Puntos OK: </strong><span>@PuntosOK</span>
+                            <strong>Hallazgos: </strong><span>@Hallazgos</span>
+                            <strong>Acciones cerradas:</strong> <span>@AccionesCerradas</span>
+                            <strong>Acciones pendientes:</strong><span>@AccionesPendientes</span>
+                            <strong>N/A:</strong><span>@PuntosNA</span>
+                    </div>
+                    </div>
+                    <div class="graficos">
+
+                        <div class="circulo-verde">
+                                @PorcentajeChecklist%
+                        </div>
+
+                        <p>Checklist</p>
+
+                        <div class="circulo-gris">
+                                @PorcentajeAcciones%
+         
+                        </div>
+
+                        <p>Acciones Correctivas</p>
+
+                    </div>
+
+               
+                </div>
+
+                <h2>Hallazgos detectados</h2>
+
+                <table class="tabla-hallazgos">
+
+                    <thead>
+
+                        <tr>
+                            <th>#</th>
+                            <th>Sección</th>
+                            <th>Punto</th>
+                            <th>Acción</th>
+                            <th>Responsable</th>
+                            <th>Fecha Compromiso</th>
+                            <th>Estatus</th>
+                            <th>Evidencias</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @{
+                            int contador = 1;
+                        }
+
+                        @foreach (var item in HallazgosTabla)
+                        {
+                            <tr>
+                                <td>@contador</td>
+                                <td>@item.Seccion</td>
+                                <td>@item.Punto</td>
+                                <td>@item.Accion</td>
+                                <td>@item.Responsable</td>
+                                <td>@item.FechaCompromiso?.ToString("dd/MM/yyyy")</td>
+                                <td>@item.Estatus</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(item.EvidenciaUrl))
+                                    {
+                                        <a href="@item.EvidenciaUrl"
+                                           target="_blank">
+                                            📷 Ver
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+                                </td>
+                            </tr>
+
+                            contador++;
+                        }
+
+                    </tbody>
+
+                </table>
+
+                <div class="resumen-botones">
+
+                    <button class="btn-cancelar"
+                            @onclick="CancelarDiagnostico">
+                        Cancelar
+                    </button>
+
+                    <button class="btn-excel"
+                            @onclick="ExportarExcel">
+                        Exportar a Excel
+                    </button>
+
+                    <button class="btn-iniciar"
+                            @onclick="TerminarDiagnostico">
+                        Terminar Diagnóstico
+                    </button>
+
+
+                </div>
+                    <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+            </div>
+                        
+
+         </div>
+
+     </div>
+ </div>
+ @code{
+    [Parameter]
+    public long DiagnosticoId { get; set; }
+    private Diagnostico? DiagnosticoActual;
+    private Maquina? MaquinaActual;
+    private Tecnico? TecnicoActual;
+    private async Task CargarResumen()
+    {
+        var diagnosticoResponse = await SupabaseService.Client
+            .From<Diagnostico>()
+            .Where(x => x.Id == DiagnosticoId)
+            .Get();
+
+        DiagnosticoActual =
+            diagnosticoResponse.Models.FirstOrDefault();
+
+        if (DiagnosticoActual == null)
+            return;
+
+        var maquinaResponse = await SupabaseService.Client
+            .From<Maquina>()
+            .Where(x => x.Id == DiagnosticoActual.MaquinaId)
+            .Get();
+
+        MaquinaActual =
+            maquinaResponse.Models.FirstOrDefault();
+
+        var tecnicoResponse = await SupabaseService.Client
+            .From<Tecnico>()
+            .Where(x => x.Id == DiagnosticoActual.TecnicoId)
+            .Get();
+
+        TecnicoActual =
+            tecnicoResponse.Models.FirstOrDefault();
+    }
+protected override async Task OnInitializedAsync()
+{
+    await CargarResumen();
+    await CargarIndicadores();
+    await CargarHallazgos();
+    await CargarEvidencias();
+}
+     protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+    private void CerrarSesion()
+    {
+        SesionService.UsuarioActual = new Usuario();
+
+        Nav.NavigateTo("/");
+    }
+    private int TotalPuntos = 0;
+    private int PuntosRevisados = 0;
+    private int PuntosOK = 0;
+    private int PuntosNA = 0;
+    private int Hallazgos = 0;
+    private int AccionesPendientes = 0;
+    private int AccionesCerradas = 0;
+    private async Task CargarIndicadores()
+    {
+        var puntosResponse = await SupabaseService.Client
+            .From<PuntoChecklist>()
+            .Get();
+
+        var totalActivos = puntosResponse.Models
+            .Count(x => x.Activo);
+
+        var hallazgosResponse = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Where(x => x.DiagnosticoId == DiagnosticoId)
+            .Get();
+
+        var hallazgos = hallazgosResponse.Models;
+
+        PuntosRevisados = hallazgos
+            .Where(x => x.Estatus != "N/A")
+            .Select(x => x.Punto)
+            .Distinct()
+            .Count();
+
+        PuntosOK = hallazgos
+            .Count(x => x.Estatus == "OK");
+        PuntosNA = hallazgos
+.Count(x => x.Estatus == "N/A");
+        Hallazgos = hallazgos
+            .Count(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A");
+
+        AccionesPendientes = Hallazgos;
+
+        AccionesCerradas = PuntosOK;
+        TotalPuntos = totalActivos - PuntosNA;
+
+        PorcentajeChecklist =
+    TotalPuntos == 0
+        ? 0
+        : (int)((PuntosRevisados * 100.0) / TotalPuntos);
+
+        var totalAcciones = Hallazgos + PuntosOK;
+
+        PorcentajeAcciones =
+            totalAcciones == 0
+                ? 0
+                : (int)((AccionesCerradas * 100.0) / totalAcciones);
+    }
+    private class HallazgoResumen
+    {
+        public string Seccion { get; set; } = "";
+        public string Punto { get; set; } = "";
+        public string Accion { get; set; } = "";
+        public string Responsable { get; set; } = "";
+        public DateTime? FechaCompromiso { get; set; }
+        public string Estatus { get; set; } = "";
+            public string EvidenciaUrl { get; set; } = "";
+
+    }
+    private List<HallazgoResumen> HallazgosTabla = new();
+    private List<AccionCorrectiva> Evidencias = new();
+    private async Task CargarHallazgos()
+    {
+        var hallazgosResponse = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Where(x => x.DiagnosticoId == DiagnosticoId)
+            .Get();
+
+        var accionesResponse = await SupabaseService.Client
+            .From<AccionCorrectiva>()
+            .Get();
+
+        var puntosResponse = await SupabaseService.Client
+            .From<PuntoChecklist>()
+            .Get();
+
+        var seccionesResponse = await SupabaseService.Client
+            .From<Seccion>()
+            .Get();
+
+        HallazgosTabla.Clear();
+
+        foreach (var hallazgo in hallazgosResponse.Models
+                     .Where(x => x.Estatus != "OK" &&
+                                 x.Estatus != "N/A"))
+        {
+            var punto = puntosResponse.Models
+                .FirstOrDefault(x => x.Codigo == hallazgo.Punto);
+
+            var seccion = seccionesResponse.Models
+                .FirstOrDefault(x => x.Id == punto?.SeccionId);
+
+            HallazgosTabla.Add(new HallazgoResumen
+            {
+                Seccion = seccion?.Nombre ?? "",
+                Punto = punto?.Nombre ?? hallazgo.Punto,
+                Accion = hallazgo.Estatus,
+                Responsable = hallazgo.Responsable,
+                FechaCompromiso = hallazgo.FechaCompromiso,
+                Estatus = "Abierta",
+                EvidenciaUrl = hallazgo.Imagen ?? ""
+            });
+        }
+    }
+    private async Task CargarEvidencias()
+{
+    var accionesResponse = await SupabaseService.Client
+        .From<AccionCorrectiva>()
+        .Get();
+
+Evidencias = accionesResponse.Models
+    .Where(x =>
+        !string.IsNullOrWhiteSpace(x.EvidenciaUrl))
+    .ToList();
+}
+    private int PorcentajeChecklist = 0;
+    private int PorcentajeAcciones = 0;
+    private async Task CancelarDiagnostico()
+    {
+        var hallazgos = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Where(x => x.DiagnosticoId == DiagnosticoId)
+            .Get();
+
+        foreach (var hallazgo in hallazgos.Models)
+        {
+            await SupabaseService.Client
+                .From<Hallazgo>()
+                .Where(x => x.Id == hallazgo.Id)
+                .Delete();
+        }
+
+        Nav.NavigateTo("/diagnosticos/nuevo");
+    }
+    private async Task TerminarDiagnostico()
+    {
+        var response = await SupabaseService.Client
+            .From<Diagnostico>()
+            .Where(x => x.Id == DiagnosticoId)
+            .Get();
+
+        var diagnostico = response.Models.FirstOrDefault();
+
+        if (diagnostico == null)
+            return;
+
+        diagnostico.Finalizado = true;
+        diagnostico.FechaCierre = DateTime.Now;
+
+        await SupabaseService.Client
+            .From<Diagnostico>()
+            .Where(x => x.Id == diagnostico.Id)
+            .Update(diagnostico);
+
+        Nav.NavigateTo("/inicio");
+    }
+    private async Task ExportarExcel()
+    {
+        if (DiagnosticoActual == null ||
+            MaquinaActual == null ||
+            TecnicoActual == null)
+        {
+               await JS.InvokeVoidAsync(
+        "alert",
+        "Datos nulos: En blanco Maquina o Responsable o Diagnostico");
+            return;
+        }
+
+        var datos = HallazgosTabla.Select(x => new HallazgoResumenDto
+        {
+            Seccion = x.Seccion,
+            Punto = x.Punto,
+            Accion = x.Accion,
+            Responsable = x.Responsable,
+            FechaCompromiso = x.FechaCompromiso,
+            Estatus = x.Estatus
+        }).ToList();
+
+       var archivo = ExcelService.GenerarExcel(
+            DiagnosticoActual,
+            MaquinaActual,
+            TecnicoActual,
+            datos,
+            TotalPuntos,
+            PuntosRevisados,
+            PuntosOK,
+            Hallazgos,
+            PuntosNA);
+
+        var base64 =
+    Convert.ToBase64String(archivo);
+
+await JS.InvokeVoidAsync(
+    "downloadFile",
+    $"Diagnostico_{MaquinaActual?.Nombre}_{DiagnosticoId}.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    base64);
+    }
+}

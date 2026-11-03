@@ -1,0 +1,489 @@
+﻿@page "/diagnosticos/detalle/{DiagnosticoId:long}/{Codigo}"
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Nav
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SesionService SesionService
+@using Microsoft.AspNetCore.Components.Forms
+@inject SupabaseService SupabaseService
+<div class="inicio-container">
+    <!-- SIDEBAR -->
+
+    <aside class="inicio-sidebar">
+        <div class="sidebar-top">
+            <h1>
+                DIAGNÓSTICO<br />
+                DE MÁQUINAS
+            </h1>
+            <hr class="menu-divider" />
+        </div>
+        <div class="sidebar-middle">
+
+            <nav>
+
+                <NavLink href="/diagnosticos/nuevo">
+                    📋 Nuevo Diagnóstico
+                </NavLink>
+
+                <NavLink href="@($"/diagnosticos/checklist/{DiagnosticoId}")">
+                    ✅ Checklist
+                </NavLink>
+
+                <NavLink href="@($"/diagnosticos/resumen/{DiagnosticoId}")">
+                    📄 Resumen
+                </NavLink>
+
+            </nav>
+        </div>
+       <div class="sidebar-footer">
+
+        <div class="user-card"
+             @onclick='() => Nav.NavigateTo("/Usuarios")'>
+
+            @if (!string.IsNullOrWhiteSpace(SesionService.UsuarioActual.FotoPerfil))
+            {
+                <img src="@SesionService.UsuarioActual.FotoPerfil"
+                     class="sidebar-avatar" />
+            }
+            else
+            {
+                <img src="/Images/user-default.png"
+                     class="sidebar-avatar" />
+            }
+
+            <span>
+                @SesionService.UsuarioActual.NombreCompleto
+            </span>
+
+            <small>
+                @SesionService.UsuarioActual.Rol
+            </small>
+
+        </div>
+            <hr />
+<a class="logout-link"
+   @onclick="CerrarSesion">
+    Cerrar sesión
+</a>
+ </div>
+</aside>
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="detalle-card">
+                <div class="detalle-header">
+
+                    <div class="detalle-titulo">
+                        <h3>Diagnóstico: @DiagnosticoId</h3>
+                        <span class="codigo-pill">
+                            @Codigo
+                        </span>
+
+                        <h2>@Codigo - @NombrePunto</h2>
+                    </div>
+
+                    <div class="detalle-avance">
+
+                        <label>Avance del Checklist</label>
+
+                        <div class="progress-bar">
+                            <div class="progress-fill"
+                                 style="width:@($"{PorcentajeAvance}%")">
+                            </div>
+                                <span>@PorcentajeAvance%</span>
+                            </div>
+                        </div>
+
+               
+
+                    </div>
+
+               
+
+                <div class="detalle-layout">
+
+                    <div class="panel-estatus">
+
+                        <h3>Seleccionar el estatus</h3>
+
+                            <InputRadioGroup @bind-Value="EstatusSeleccionado">
+
+                                <label>
+                                    <InputRadio Value='@("OK")' />
+                                    OK
+                                </label>
+
+                                <label>
+                                    <InputRadio Value='@("Ajustar")' />
+                                    Ajustar
+                                </label>
+
+                                <label>
+                                    <InputRadio Value='@("Reemplazar")' />
+                                    Reemplazar
+                                </label>
+
+                                <label>
+                                    <InputRadio Value='@("Reparar")' />
+                                    Reparar
+                                </label>
+
+                                <label>
+                                    <InputRadio Value='@("Limpiar")' />
+                                    Limpiar
+                                </label>
+
+                                <label>
+                                    <InputRadio Value='@("Calibrar")' />
+                                    Calibrar
+                                </label>
+
+                                <label>
+                                    <InputRadio Value='@("N/A")' />
+                                    N/A
+                                </label>
+
+                            </InputRadioGroup>
+                    </div>
+
+                    <div class="panel-comentario">
+
+                        <label>Comentario</label>
+
+                        <textarea @bind="Comentario"></textarea>
+
+                        <InputSelect @bind-Value="Responsable">
+                            <label>Responsable:</label>
+                            <option value="">
+                                Seleccione Responsable:
+                            </option>
+
+                            @foreach (var tecnico in tecnicos)
+                            {
+                                <option value="@tecnico.Nombre">
+                                    @tecnico.Nombre
+                                </option>
+                            }
+
+                        </InputSelect>
+
+                        <label>Fecha compromiso</label>
+
+                        <InputDate @bind-Value="FechaCompromiso" />
+
+                    </div>
+
+                </div>
+
+                <div class="panel-imagen">
+
+                    <label>Adjuntar imagen</label>
+
+                    <div class="imagen-layout">
+
+                        <InputFile OnChange="SeleccionarImagen" />
+                        <div class="imagen-preview">
+
+                            @if (!string.IsNullOrEmpty(ImagenPreview))
+                            {
+                                <img src="@ImagenPreview"
+                                     style="max-width:200px; max-height:200px;" />
+                            }
+                            else
+                            {
+                                <span>Sin imagen seleccionada</span>
+                            }
+
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="detalle-botones">
+
+                    <button class="btn-cancelar"
+                            @onclick="Anterior">
+                        Anterior
+                    </button>
+
+                    <button class="btn-iniciar"
+                            @onclick="Siguiente">
+                        Siguiente
+                    </button>
+
+                </div>
+                    <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+@code {
+    [Parameter]
+    public long DiagnosticoId { get; set; }
+    [Parameter]
+    public string? Codigo { get; set; }
+    private void IrChecklist()
+{
+    Nav.NavigateTo($"/diagnosticos/checklist/{DiagnosticoId}");
+}
+        private List<string> Puntos = new();
+    private async Task CargarPuntos()
+    {
+        var response = await SupabaseService.Client
+            .From<PuntoChecklist>()
+            .Get();
+
+        Puntos = response.Models
+            .Where(x => x.Activo)
+            .OrderBy(x => x.Codigo)
+            .Select(x => x.Codigo)
+            .ToList();
+    }
+
+    private async Task Siguiente()
+    {
+        await GuardarHallazgo();
+
+        var indice = Puntos.IndexOf(Codigo ?? "");
+
+        if (indice >= 0 && indice < Puntos.Count - 1)
+        {
+            Nav.NavigateTo(
+                $"/diagnosticos/detalle/{DiagnosticoId}/{Puntos[indice + 1]}"
+            );
+        }
+        else
+        {
+            Nav.NavigateTo(
+                $"/diagnosticos/resumen/{DiagnosticoId}"
+            );
+        }
+    }
+
+        private void Anterior()
+        {
+            var indice = Puntos.IndexOf(Codigo ?? "");
+
+            if (indice > 0)
+            {
+            Nav.NavigateTo($"/diagnosticos/detalle/{DiagnosticoId}/{Puntos[indice - 1]}");
+            }
+        }
+protected override async Task OnInitializedAsync()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+        return;
+    }
+
+    var response = await SupabaseService.Client
+        .From<Tecnico>()
+        .Get();
+
+    tecnicos = response.Models
+        .Where(x => x.Activo)
+        .ToList();
+}
+
+    private void CerrarSesion()
+    {
+        SesionService.UsuarioActual = new Usuario();
+
+        Nav.NavigateTo("/");
+    }
+    private Hallazgo nuevoHallazgo = new();
+    private string EstatusSeleccionado = "";
+    private string Comentario = "";
+    private DateTime? FechaCompromiso;
+    private async Task GuardarHallazgo()
+    {
+        var existente = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Where(x =>
+                x.DiagnosticoId == DiagnosticoId &&
+                x.Punto == Codigo)
+            .Get();
+string imagenGuardar = urlImagen;
+
+        if (existente.Models.Any())
+        {
+            var hallazgo = existente.Models
+                .OrderByDescending(x => x.Id)
+                .First();
+
+            hallazgo.Estatus = EstatusSeleccionado;
+            hallazgo.Comentario = Comentario;
+            hallazgo.Responsable = Responsable;
+            hallazgo.FechaCompromiso = FechaCompromiso;
+            hallazgo.FechaCreacion = DateTime.Now;
+
+            if (!string.IsNullOrWhiteSpace(imagenGuardar))
+            {
+                hallazgo.Imagen = imagenGuardar;
+            }
+
+            await SupabaseService.Client
+                .From<Hallazgo>()
+                .Where(x => x.Id == hallazgo.Id)
+                .Update(hallazgo);
+        }
+        else
+        {
+            nuevoHallazgo.DiagnosticoId = DiagnosticoId;
+            nuevoHallazgo.Punto = Codigo ?? "";
+            nuevoHallazgo.Estatus = EstatusSeleccionado;
+            nuevoHallazgo.Comentario = Comentario;
+            nuevoHallazgo.Responsable = Responsable;
+            nuevoHallazgo.FechaCompromiso = FechaCompromiso;
+            nuevoHallazgo.FechaCreacion = DateTime.Now;
+            nuevoHallazgo.Imagen = imagenGuardar;
+
+            await SupabaseService.Client
+                .From<Hallazgo>()
+                .Insert(nuevoHallazgo);
+        }
+    }
+    private List<Tecnico> tecnicos = new();
+    private string Responsable = "";
+    private string ImagenPreview = "";
+    private string urlImagen = "";
+    private IBrowserFile? ArchivoSeleccionado;
+    private async Task SeleccionarImagen(InputFileChangeEventArgs e)
+{
+    ArchivoSeleccionado = e.File;
+
+    using var ms = new MemoryStream();
+    await ArchivoSeleccionado.OpenReadStream(10485760).CopyToAsync(ms);
+
+    var imagenBase64 = Convert.ToBase64String(ms.ToArray());
+
+    ImagenPreview =
+        $"data:{ArchivoSeleccionado.ContentType};base64,{imagenBase64}";
+    var storage = SupabaseService.Client.Storage;
+        Console.WriteLine(ArchivoSeleccionado?.Name);
+       
+        if (ArchivoSeleccionado is not null)
+        {
+            await ArchivoSeleccionado
+                .OpenReadStream(10485760)
+                .CopyToAsync(ms);
+
+            var nombreArchivo =
+                $"{DiagnosticoId}_{Codigo}_{DateTime.Now:yyyyMMddHHmmss}.png";
+
+            await SupabaseService.Client.Storage
+                .From("hallazgos")
+                .Upload(ms.ToArray(), nombreArchivo);
+
+            urlImagen =
+                SupabaseService.Client.Storage
+                    .From("hallazgos")
+                    .GetPublicUrl(nombreArchivo);
+        }
+        nuevoHallazgo.Imagen = urlImagen;
+
+}
+protected override async Task OnParametersSetAsync()
+{
+        await CargarAvance();
+        await CargarPuntos();
+
+        await CargarNombrePunto();
+
+        var response = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Where(x =>
+                x.DiagnosticoId == DiagnosticoId &&
+                x.Punto == Codigo)
+            .Get();
+
+        var hallazgo = response.Models
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefault();
+
+    if (hallazgo != null)
+    {
+        EstatusSeleccionado = hallazgo.Estatus;
+        Comentario = hallazgo.Comentario;
+        Responsable = hallazgo.Responsable;
+        FechaCompromiso = hallazgo.FechaCompromiso;
+        ImagenPreview = hallazgo.Imagen;
+            urlImagen = hallazgo.Imagen;
+
+    }
+    else
+    {
+        LimpiarFormulario();
+    }
+
+}
+private void LimpiarFormulario()
+{
+    EstatusSeleccionado = "";
+    Comentario = "";
+    Responsable = "";
+    FechaCompromiso = null;
+    ImagenPreview = "";
+    ArchivoSeleccionado = null;
+        urlImagen = "";
+
+
+}
+    private string NombrePunto = "";
+private async Task CargarNombrePunto()
+{
+    var response = await SupabaseService.Client
+        .From<PuntoChecklist>()
+        .Get();
+
+    var punto = response.Models
+        .FirstOrDefault(x => x.Codigo == Codigo);
+
+    if (punto is not null)
+    {
+        NombrePunto = punto.Nombre;
+    }
+}
+    private int TotalPuntos = 0;
+    private int PuntosCompletados = 0;
+
+    private int PorcentajeAvance =>
+        TotalPuntos == 0
+            ? 0
+            : (int)((PuntosCompletados * 100.0) / TotalPuntos);
+            private async Task CargarAvance()
+{
+    var puntos = await SupabaseService.Client
+        .From<PuntoChecklist>()
+        .Get();
+
+    TotalPuntos = puntos.Models
+        .Count(x => x.Activo);
+
+    var hallazgos = await SupabaseService.Client
+        .From<Hallazgo>()
+        .Where(x => x.DiagnosticoId == DiagnosticoId)
+        .Get();
+
+    PuntosCompletados = hallazgos.Models
+        .Select(x => x.Punto)
+        .Distinct()
+        .Count();
+}
+    }
+

@@ -1,0 +1,401 @@
+﻿@page "/AccionesCatalogo"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@inject SupabaseService SupabaseService
+@inject SesionService SesionService
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="inicio-content">
+
+                <div class="inicio-body">
+
+                    <div class="catalogo-container">
+
+                        <h1 class="catalogo-titulo">
+                            Catálogo de Acciones
+                        </h1>
+                        <p>Total acciones: @acciones.Count</p>
+                        <p class="catalogo-subtitulo">
+                            Administrar acciones correctivas disponibles
+                        </p>
+
+                        <div class="catalogo-toolbar">
+
+                            <input class="catalogo-busqueda"
+                                   @bind="Busqueda"
+                                   @bind:event="oninput"
+                                   placeholder="Buscar por accion o descripcion" />
+
+                            <button class="btn-filtro">
+                                Buscar
+                            </button>
+
+                            <button class="btn-nueva"
+                                    @onclick="AbrirModal">
+                                + Nueva Accion
+                            </button>
+
+                        </div>
+
+                        <table class="tabla-accionesC">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Accion</th>
+                                    <th>Descripcion</th>
+                                    <th>Estatus</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var accion in AccionesPaginadas)
+                                {
+                                    <tr>
+
+                                        <td>@accion.Id</td>
+
+                                        <td>@accion.Nombre</td>
+
+                                        <td>@accion.Descripcion</td>
+
+                                        <td>
+                                            <span class="@(accion.Activo ? "estatus-activo" : "estatus-inactivo")">
+                                                @(accion.Activo ? "Activo" : "Inactivo")
+                                            </span>
+                                        </td>
+
+                                        <td class="acciones-col">
+
+                                            <button class="btn-editar"
+                                                    @onclick="() => AbrirEditar(accion)">
+                                                ✏️
+                                            </button>
+
+                                            <button class="btn-eliminar"
+                                                    @onclick="() => AbrirEliminar(accion)">
+                                                🗑️
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+                        </table>
+                        <div class="catalogo-footer">
+
+                            <div class="paginacion">
+
+                                <button @onclick="PaginaAnterior"
+                                        disabled="@(PaginaActual == 1)">
+                                    &lt;
+                                </button>
+
+                                @for (int i = 1; i <= TotalPaginas; i++)
+                                {
+                                    var pagina = i;
+
+                                    <button class="@(PaginaActual == pagina ? "pagina-activa" : "")"
+                                            @onclick="() => CambiarPagina(pagina)">
+                                        @pagina
+                                    </button>
+                                }
+
+                                <button @onclick="PaginaSiguiente"
+                                        disabled="@(PaginaActual == TotalPaginas)">
+                                    &gt;
+                                </button>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (MostrarModal)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-accion">
+
+                                <div class="modal-header">
+
+                                    <h2>
+                                        @(EsEdicion ? "Editar Acción" : "Nueva Acción")
+                                    </h2>
+
+                                    <button @onclick="CerrarModal">
+                                        ✕
+                                    </button>
+
+                                </div>
+
+                                <div class="modal-grid">
+
+                                    <div class="modal-campo">
+                                        <label>Accion*</label>
+                                        <input @bind="nuevaAccion.Nombre" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Descripcion*</label>
+                                        <input @bind="nuevaAccion.Descripcion" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Estatus*</label>
+                                        <InputSelect @bind-Value="nuevaAccion.Activo">
+
+                                            <option value="true">Activo</option>
+
+                                            <option value="false">Inactivo</option>
+
+                                        </InputSelect>
+                                    </div>
+                                </div>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarModal">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-guardar"
+                                            @onclick="GuardarOActualizar">
+                                        Guardar Acción
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    @if (MostrarEliminar)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-confirmacion">
+
+                                <h2>Eliminar Accion</h2>
+
+                                <p>
+                                    ¿Está seguro de eliminar esta Accion?
+                                </p>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarEliminar">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-eliminar"
+                                            @onclick="EliminarAccion">
+                                        Eliminar
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    <div class="developed-by">
+
+                        <img src="/Images/versigent-logo.png"
+                             class="versigent-logo" />
+                        <span>
+                            Desarrollado por IT OpEx - Ing Jennifer Valdes
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+
+    bool MostrarCatalogos = true;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        nuevaAccion = new AccionCatalogo();
+
+        EsEdicion = false;
+
+        MostrarModal = true;
+    }
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+    private void AbrirEditar(AccionCatalogo accion)
+    {
+        nuevaAccion = new AccionCatalogo
+        {
+            Id = accion.Id,
+            Nombre = accion.Nombre,
+            Descripcion = accion.Descripcion,
+            Activo = accion.Activo
+        };
+
+        EsEdicion = true;
+
+        MostrarModal = true;
+    }
+    private AccionCatalogo? accionEliminar;
+    bool MostrarEliminar = false;
+    void AbrirEliminar(AccionCatalogo accion)
+    {
+        accionEliminar = accion;
+
+        MostrarEliminar = true;
+    }
+    private async Task EliminarAccion()
+    {
+        if (accionEliminar is null)
+            return;
+
+        await SupabaseService.Client
+            .From<AccionCatalogo>()
+            .Where(x => x.Id == accionEliminar.Id)
+            .Delete();
+
+        MostrarEliminar = false;
+
+        await CargarAcciones();
+    }
+    void CerrarEliminar()
+    {
+        MostrarEliminar = false;
+    }
+    private List<AccionCatalogo> acciones = new();
+
+    private async Task CargarAcciones()
+    {
+        var response =
+            await SupabaseService.Client
+                .From<AccionCatalogo>()
+                .Get();
+
+        acciones = response.Models
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAcciones();
+    }
+    private AccionCatalogo nuevaAccion = new();
+
+    private bool EsEdicion = false;
+    private async Task GuardarAccion()
+    {
+        nuevaAccion.Id = 0;
+
+        await SupabaseService.Client
+            .From<AccionCatalogo>()
+            .Insert(nuevaAccion);
+
+        MostrarModal = false;
+
+        nuevaAccion = new AccionCatalogo();
+
+        await CargarAcciones();
+    }
+    private async Task ActualizarAccion()
+    {
+        await SupabaseService.Client
+            .From<AccionCatalogo>()
+            .Update(nuevaAccion);
+
+        MostrarModal = false;
+
+        EsEdicion = false;
+
+        await CargarAcciones();
+    }
+    private async Task GuardarOActualizar()
+    {
+        if (EsEdicion)
+            await ActualizarAccion();
+        else
+            await GuardarAccion();
+    }
+    private string _busqueda = "";
+
+    private string Busqueda
+    {
+        get => _busqueda;
+        set
+        {
+            _busqueda = value;
+            PaginaActual = 1;
+        }
+    }
+
+    private int PaginaActual = 1;
+
+    private int RegistrosPorPagina = 5;
+    private IEnumerable<AccionCatalogo> AccionesFiltradas =>
+        acciones.Where(x =>
+            string.IsNullOrWhiteSpace(Busqueda) ||
+            x.Nombre.Contains(Busqueda,
+                StringComparison.OrdinalIgnoreCase) ||
+            x.Descripcion.Contains(Busqueda,
+                StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<AccionCatalogo> AccionesPaginadas =>
+        AccionesFiltradas
+            .Skip((PaginaActual - 1) * RegistrosPorPagina)
+            .Take(RegistrosPorPagina);
+    private int TotalPaginas =>
+        (int)Math.Ceiling(
+            AccionesFiltradas.Count() /
+            (double)RegistrosPorPagina);
+    private void CambiarPagina(int pagina)
+    {
+        PaginaActual = pagina;
+    }
+    private void PaginaAnterior()
+    {
+        if (PaginaActual > 1)
+            PaginaActual--;
+    }
+    private void PaginaSiguiente()
+    {
+        if (PaginaActual < TotalPaginas)
+            PaginaActual++;
+    }
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+}

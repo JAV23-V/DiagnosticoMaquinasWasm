@@ -1,0 +1,596 @@
+﻿@page "/dashboard"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@inject SesionService SesionService
+@using DiagnosticoMaquinas.Models
+@inject SupabaseService SupabaseService
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="dashboard-card">
+
+    <div class="dashboard-header">
+
+        <div>
+
+            <h1 class="dashboard-titulo">
+                Dashboard
+            </h1>
+
+            <span class="dashboard-subtitulo">
+                Resumen general de mantenimiento
+            </span>
+
+        </div>
+
+        <div class="dashboard-toolbar">
+
+            <div class="dashboard-fecha">
+
+                📅
+
+                <strong>Última actualización:</strong>
+
+                            @DateTime.Now.ToString("dd/MM/yyyy hh:mm tt")
+            </div>
+
+                        <select class="dashboard-filtro"
+                                @onchange="PeriodoChanged">
+
+                            <option>Este mes</option>
+
+                            <option>Últimos 3 meses</option>
+
+                            <option>Últimos 6 meses</option>
+
+                            <option>Este año</option>
+
+                        </select>
+
+        </div>
+
+    </div>
+
+    <div class="dashboard-kpis">
+
+        <div class="dashboard-kpi azul">
+            <span>@DiagnosticosMes</span>
+            <p>Diagnósticos realizados</p>
+        </div>
+
+        <div class="dashboard-kpi amarillo">
+                        <span>@AccionesAbiertas</span>
+            <p>Acciones abiertas</p>
+        </div>
+
+        <div class="dashboard-kpi verde">
+                        <span>@AccionesCerradas</span>
+            <p>Acciones cerradas</p>
+        </div>
+
+        <div class="dashboard-kpi rojo">
+                        <span>@AccionesVencidas</span>
+            <p>Acciones vencidas</p>
+        </div>
+
+    </div>
+
+    <div class="dashboard-graficas">
+
+        <div class="grafica-card">
+                        <h3>Hallazgos por área</h3>
+            <div class="grafica-card">
+
+    <div class="hallazgos-chart">
+
+    <div class="grafica-card">
+
+    <div class="hallazgos-area">
+
+                                        <div class="hallazgos-area">
+
+                                            @foreach (var item in HallazgosArea)
+                                            {
+                                                <div class="hallazgo-item">
+
+                                                    <span class="hallazgo-nombre">
+                                                        @item.Area
+                                                    </span>
+
+                                                    <div class="hallazgo-barra">
+                                                        <div class="hallazgo-fill"
+                                                             style=@($"width:{(item.Total * 100) / MaxHallazgos}%")>
+                                                    </div>
+                                                    </div>
+
+                                                    <span class="hallazgo-valor">
+                                                        @item.Total
+                                                    </span>
+
+                                                </div>
+                                            }
+
+                                        </div>
+
+            </div>
+
+            </div>
+
+            </div>
+
+            </div>
+        </div>
+
+        <div class="grafica-card">
+                        <h3>Top 5 Máquinas con más incidencias</h3>
+            <div class="grafica-card">
+                            @foreach (var item in TopMaquinas)
+                            {
+                                <div class="top5-item">
+
+                                    <span class="top5-nombre">
+                                        @item.Maquina
+                                    </span>
+
+                                    <div class="top5-barra">
+                                    <div class="top5-fill"
+                                             style=@($"width:{(item.Total * 100) / MaxTopMaquinas}%")>
+                                    </div>
+                                        
+                                    </div>
+
+                                    <span class="top5-valor">
+                                        @item.Total
+                                    </span>
+
+                                </div>
+                            }
+
+        </div>
+        </div>
+
+        <div class="grafica-card">
+                        <h3>Estado de acciones</h3>
+
+            <div class="grafica-card">
+
+    <div class="donut-container">
+
+                                <div class="donut-chart"
+                                     style="background:@DonutStyle">
+
+            <div class="donut-center">
+                                        @TotalAccionesDashboard
+            </div>
+
+        </div>
+
+        <div class="donut-legend">
+
+            <div class="legend-item">
+                <span class="legend-color abierta"></span>
+                                        Abiertas (@AccionesAbiertas)
+            </div>
+
+            <div class="legend-item">
+                <span class="legend-color proceso"></span>
+                                        En proceso (@AccionesEnProceso)
+            </div>
+
+            <div class="legend-item">
+                <span class="legend-color cerrada"></span>
+                                        Cerradas (@AccionesCerradas)
+            </div>
+
+            <div class="dashboard-kpi rojo">
+
+                <span>@AccionesVencidas</span>
+
+                <p>Acciones vencidas</p>
+
+            </div>
+
+        </div>
+
+        </div>
+
+    </div>
+        </div>
+
+    </div>
+
+    <div class="dashboard-tablas">
+
+        <div class="dashboard-tabla">
+                        <h3>Acciones próximas a vencer</h3>
+            <div class="dashboard-tabla">
+    <table class="tabla-vencer">
+
+        <thead>
+            <tr>
+                <th class="dias-col">Días</th>
+                <th>Máquina</th>
+                <th>Punto</th>
+                <th>Acción</th>
+                <th>Responsable</th>
+                <th>Fecha compromiso</th>
+            </tr>
+        </thead>
+
+                                <tbody>
+
+                                    @foreach (var item in AccionesVencer)
+                                    {
+                                        <tr>
+
+                                            <td>
+                                                @((item.FechaCompromiso.Date - DateTime.Today).Days)
+                                            </td>
+
+                                            <td>@item.Maquina</td>
+
+                                            <td>@item.Punto</td>
+
+                                            <td>@item.Accion</td>
+
+                                            <td>@item.Responsable</td>
+
+                                            <td>@item.FechaCompromiso.ToString("dd/MM/yyyy")</td>
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+
+    </table>
+
+</div>
+        </div>
+
+                    <div class="dashboard-tabla">
+
+                        <h3>Diagnósticos recientes</h3>
+
+                        <table class="tabla-recientes">
+
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Máquina</th>
+                                    <th>Fecha Compromiso</th>
+                                    <th>Hallazgo</th>
+                                    <th>Avance</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var item in DiagnosticosRecientes)
+                                {
+                                    <tr>
+
+                                        <td>
+    D-@item.Id.ToString("0000")
+</td>
+
+                                        <td>@item.Maquina</td>
+
+                                        <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
+
+                                        <td>@item.Hallazgos</td>
+
+                                        <td>
+
+                                            @if (item.Estatus == "Finalizado")
+                                            {
+                                                <span class="estado-finalizado">
+                                                    Finalizado
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="estado-activo">
+                                                    Activo
+                                                </span>
+                                            }
+
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+        </div>
+    </div>
+
+        <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+</div>
+</div>
+</div>
+@code {
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    private int DiagnosticosMes;
+    private int AccionesAbiertas;
+    private int AccionesCerradas;
+    private int AccionesVencidas;
+
+    private List<(string Nombre, int Total)> HallazgosPorArea = new();
+    private List<(string Maquina, int Total)> TopMaquinas = new();
+    public string Maquina { get; set; } = "";
+    private List<AccionVencer> AccionesVencer = new();
+    protected override async Task OnInitializedAsync()
+    {
+        if (SesionService.UsuarioActual.Id == 0)
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        await CargarDashboard();
+    }
+    private async Task CargarDashboard()
+    {
+        var diagnosticos = await SupabaseService.Client
+            .From<Diagnostico>()
+            .Get();
+
+        var hallazgos = await SupabaseService.Client
+            .From<Hallazgo>()
+            .Get();
+
+        var acciones = await SupabaseService.Client
+            .From<AccionCorrectiva>()
+            .Get();
+
+        var maquinas = await SupabaseService.Client
+            .From<Maquina>()
+            .Get();
+
+        var secciones = await SupabaseService.Client
+            .From<Seccion>()
+            .Get();
+
+        var puntos = await SupabaseService.Client
+            .From<PuntoChecklist>()
+            .Get();
+
+        var fechaInicio = ObtenerFechaInicio();
+
+        var diagnosticosFiltrados = diagnosticos.Models
+            .Where(x => x.Fecha >= fechaInicio)
+            .ToList();
+
+        DiagnosticosMes = diagnosticosFiltrados.Count;
+
+        AccionesAbiertas =
+            hallazgos.Models.Count(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A")
+            +
+            acciones.Models.Count(x =>
+                x.Estatus == "Abierta");
+
+        AccionesEnProceso =
+            acciones.Models.Count(x =>
+                x.Estatus == "En proceso");
+
+        AccionesCerradas =
+            hallazgos.Models.Count(x =>
+                x.Estatus == "OK")
+            +
+            acciones.Models.Count(x =>
+                x.Estatus == "Cerrada");
+
+        AccionesVencidas =
+            hallazgos.Models.Count(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A" &&
+                x.FechaCompromiso.HasValue &&
+                x.FechaCompromiso.Value.Date < DateTime.Today)
+            +
+            acciones.Models.Count(x =>
+                x.Estatus != "Cerrada" &&
+                x.FechaCompromiso.HasValue &&
+                x.FechaCompromiso.Value.Date < DateTime.Today);
+
+        TotalAccionesDashboard =
+            AccionesAbiertas +
+            AccionesEnProceso +
+            AccionesCerradas;
+
+        TopMaquinas = diagnosticosFiltrados
+            .Join(
+                maquinas.Models,
+                d => d.MaquinaId,
+                m => m.Id,
+                (d, m) => new
+                {
+                    m.Nombre,
+                    DiagnosticoId = d.Id
+                })
+            .Join(
+                hallazgos.Models.Where(h =>
+                    h.Estatus != "OK" &&
+                    h.Estatus != "N/A"),
+                x => x.DiagnosticoId,
+                h => h.DiagnosticoId,
+                (x, h) => x.Nombre)
+            .GroupBy(x => x)
+            .Select(x => (
+                Maquina: x.Key,
+                Total: x.Count()))
+            .OrderByDescending(x => x.Total)
+            .Take(5)
+            .ToList();
+        AccionesVencer = hallazgos.Models
+.Where(x =>
+    x.Estatus != "OK" &&
+    x.Estatus != "N/A" &&
+    x.FechaCompromiso.HasValue)
+.Select(x =>
+{
+    var diagnostico = diagnosticos.Models
+        .FirstOrDefault(d =>
+            d.Id == x.DiagnosticoId);
+
+    var maquina = maquinas.Models
+        .FirstOrDefault(m =>
+            m.Id == diagnostico?.MaquinaId);
+
+    return new AccionVencer
+    {
+        Maquina = maquina?.Nombre ?? "",
+
+        Punto = x.Punto,
+
+        Accion = x.Estatus,
+
+        Responsable = x.Responsable,
+
+        FechaCompromiso =
+            x.FechaCompromiso ?? DateTime.Today
+    };
+})
+.OrderBy(x => x.FechaCompromiso)
+.Take(10)
+.ToList();
+        DiagnosticosRecientes = diagnosticosFiltrados
+            .OrderByDescending(x => x.Fecha)
+            .Take(10)
+            .Select(x =>
+            {
+                var maquina = maquinas.Models
+                    .FirstOrDefault(m => m.Id == x.MaquinaId);
+
+                var totalHallazgos = hallazgos.Models
+                    .Count(h => h.DiagnosticoId == x.Id);
+
+                return new DiagnosticoReciente
+                {
+                    Id = x.Id,
+                    Maquina = maquina?.Nombre ?? "",
+                    Fecha = x.Fecha,
+                    Hallazgos = totalHallazgos,
+                    Estatus = x.Estatus
+                };
+            })
+            .ToList();
+
+        HallazgosArea = hallazgos.Models
+            .Where(x =>
+                x.Estatus != "OK" &&
+                x.Estatus != "N/A")
+            .Join(
+                puntos.Models,
+                h => h.Punto,
+                p => p.Codigo,
+                (h, p) => p)
+            .Join(
+                secciones.Models,
+                p => p.SeccionId,
+                s => s.Id,
+                (p, s) => s.Nombre)
+            .GroupBy(x => x)
+            .Select(x => new HallazgoArea
+                {
+                    Area = x.Key,
+                    Total = x.Count()
+                })
+            .OrderByDescending(x => x.Total)
+            .Take(5)
+            .ToList();
+
+    }
+    private List<DiagnosticoReciente> DiagnosticosRecientes = new();
+    private List<HallazgoArea> HallazgosArea = new();
+    private int MaxHallazgos =>
+    HallazgosArea.Any()
+        ? HallazgosArea.Max(x => x.Total)
+        : 1;
+    private int MaxTopMaquinas =>
+TopMaquinas.Any()
+    ? TopMaquinas.Max(x => x.Total)
+    : 1;
+    private int AccionesEnProceso;
+    private int TotalAccionesDashboard;
+    private string PeriodoSeleccionado = "Este mes";
+    private DateTime ObtenerFechaInicio()
+    {
+        return PeriodoSeleccionado switch
+        {
+            "Últimos 3 meses" =>
+                DateTime.Today.AddMonths(-3),
+
+            "Últimos 6 meses" =>
+                DateTime.Today.AddMonths(-6),
+
+            "Este año" =>
+                new DateTime(
+                    DateTime.Today.Year,
+                    1,
+                    1),
+
+            _ =>
+                new DateTime(
+                    DateTime.Today.Year,
+                    DateTime.Today.Month,
+                    1)
+        };
+    }
+    private async Task PeriodoChanged(ChangeEventArgs e)
+    {
+        PeriodoSeleccionado =
+            e.Value?.ToString() ?? "Este mes";
+
+        await CargarDashboard();
+    }
+    private string DonutStyle =>
+$@"conic-gradient(
+#F4A300 0% {PorcentajeAbiertas}%,
+#38BDF8 {PorcentajeAbiertas}% {PorcentajeAbiertas + PorcentajeProceso}%,
+#4ADE80 {PorcentajeAbiertas + PorcentajeProceso}% 100%)";
+
+    private double PorcentajeAbiertas =>
+        TotalAccionesDashboard == 0
+            ? 0
+            : (AccionesAbiertas * 100.0) / TotalAccionesDashboard;
+
+    private double PorcentajeProceso =>
+        TotalAccionesDashboard == 0
+            ? 0
+            : (AccionesEnProceso * 100.0) / TotalAccionesDashboard;
+
+    private double PorcentajeCerradas =>
+        TotalAccionesDashboard == 0
+            ? 0
+            : (AccionesCerradas * 100.0) / TotalAccionesDashboard;
+    private void CerrarSesion()
+    {
+        SesionService.UsuarioActual = new Usuario();
+
+        Nav.NavigateTo("/");
+    }
+}

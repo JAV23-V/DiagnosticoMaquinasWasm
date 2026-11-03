@@ -1,0 +1,369 @@
+﻿@page "/Configuracion"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinas.Models
+@using DiagnosticoMaquinasWasm.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject SupabaseService SupabaseService
+@inject SesionService SesionService
+
+<div class="inicio-container">
+
+    <Sidebar />
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+            <div class="inicio-content">
+
+                <div class="inicio-body">
+
+                    <div class="catalogo-container">
+
+                        <h1 class="catalogo-titulo">
+                            Gestion de usuarios
+                        </h1>
+                        <p>Total usuarios: @usuarios.Count</p>
+                        <p class="catalogo-subtitulo">
+                            Administrar usuarios del sistema
+                        </p>
+
+                        <div class="catalogo-toolbar">
+
+                            <input class="catalogo-busqueda"
+                                   placeholder="Buscar por usuario, nombre o rol" />
+
+                            <button class="btn-filtro">
+                                Filtros
+                            </button>
+
+                            <button class="btn-nueva"
+                                    @onclick="AbrirModal">
+                                + Nuevo Usuario
+                            </button>
+
+                        </div>
+
+                        <table class="tabla-configuracion">
+                            <thead>
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th>Nombre</th>
+                                    <th>Rol</th>
+                                    <th>Estatus</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var usuario in usuarios)
+                                {
+                                    <tr>
+
+                                        <td>@usuario.UsuarioSistema</td>
+
+                                        <td>@usuario.NombreCompleto</td>
+
+                                        <td>@usuario.Rol</td>
+
+                                        <td>
+                                            <span class="@(usuario.Activo ? "estatus-activo" : "estatus-inactivo")">
+                                                @(usuario.Activo ? "Activo" : "Inactivo")
+                                            </span>
+                                        </td>
+
+                                        <td class="acciones-col">
+
+                                            <button class="btn-editar"
+                                                    @onclick="() => AbrirEditar(usuario)">
+                                                ✏️
+                                            </button>
+
+                                            <button class="btn-eliminar"
+                                                    @onclick="() => AbrirEliminar(usuario)">
+                                                🗑️
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+                        </table>
+                        <div class="catalogo-footer">
+
+                            <div class="paginacion">
+
+                                <button>&lt;</button>
+
+                                <button>1</button>
+                                <button>2</button>
+                                <button>3</button>
+
+                                <button>&gt;</button>
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                    @if (MostrarModal)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-accion">
+
+                                <div class="modal-header">
+
+                                    <h2>
+                                        @(EsEdicion ? "Editar Sección" : "Nueva Sección")
+                                    </h2>
+
+                                    <button @onclick="CerrarModal">
+                                        ✕
+                                    </button>
+
+                                </div>
+
+                                <div class="modal-grid">
+                                    <div class="modal-campo">
+                                        <label>Usuario*</label>
+                                        <input @bind="nuevoUsuario.UsuarioSistema" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Nombre*</label>
+                                        <input @bind="nuevoUsuario.NombreCompleto" />
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Rol*</label>
+                                        <select @bind="nuevoUsuario.Rol">
+
+                                            <option value="">Seleccione Rol</option>
+
+                                            <option>Técnico</option>
+                                            <option>Supervisor</option>
+                                            <option>Administrador</option>
+
+                                        </select>
+                                    </div>
+
+                                    <div class="modal-campo">
+                                        <label>Estatus*</label>
+                                        <InputSelect @bind-Value="nuevoUsuario.Activo">
+
+                                            <option value="true">Activo</option>
+
+                                            <option value="false">Inactivo</option>
+
+                                        </InputSelect>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarModal">
+                                        Cancelar
+                                    </button>
+                                    <p>Estado actual: @nuevoUsuario.Activo</p>
+                                   
+                                    <button class="btn-modal-guardar"
+                                            @onclick="GuardarOActualizar">
+                                        Guardar Usuario
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    @if (MostrarEliminar)
+                    {
+                        <div class="modal-overlay">
+
+                            <div class="modal-confirmacion">
+
+                                <h2>Eliminar Usuario</h2>
+
+                                <p>
+                                    ¿Está seguro de eliminar al usuario
+                                    <strong>@usuarioEliminar?.UsuarioSistema</strong>?
+                                </p>
+
+                                <div class="modal-botones">
+
+                                    <button class="btn-modal-cancelar"
+                                            @onclick="CerrarEliminar">
+                                        Cancelar
+                                    </button>
+
+                                    <button class="btn-modal-eliminar"
+                                            @onclick="EliminarUsuario">
+                                        Eliminar
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                    <div class="developed-by">
+
+                        <img src="/Images/versigent-logo.png"
+                             class="versigent-logo" />
+                        <span>
+                            Desarrollado por IT OpEx - Ing Jennifer Valdes
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+
+    bool MostrarCatalogos = false;
+
+    void ToggleCatalogos()
+    {
+        MostrarCatalogos = !MostrarCatalogos;
+    }
+    bool MostrarModal = false;
+
+    void AbrirModal()
+    {
+        MostrarModal = true;
+    }
+
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+
+    bool MostrarEliminar = false;
+
+    void AbrirEliminar(Usuario usuario)
+    {
+        usuarioEliminar = usuario;
+
+        MostrarEliminar = true;
+    }
+
+    void CerrarEliminar()
+    {
+        MostrarEliminar = false;
+    }
+    private List<Usuario> usuarios = new();
+    private async Task CargarUsuarios()
+    {
+        var response =
+            await SupabaseService.Client
+                .From<Usuario>()
+                .Get();
+
+        usuarios = response.Models
+            .OrderBy(x => x.Id)
+            .ToList();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUsuarios();
+    }
+    private Usuario nuevoUsuario = new();
+    private async Task GuardarUsuario()
+    {
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Insert(nuevoUsuario);
+
+        MostrarModal = false;
+
+        nuevoUsuario = new();
+
+        await CargarUsuarios();
+    }
+    private bool EsEdicion = false;
+private void AbrirEditar(Usuario usuario)
+{
+    nuevoUsuario = new Usuario
+    {
+        Id = usuario.Id,
+        UsuarioSistema = usuario.UsuarioSistema,
+        NombreCompleto = usuario.NombreCompleto,
+        Correo = usuario.Correo,
+        Telefono = usuario.Telefono,
+        Rol = usuario.Rol,
+        Area = usuario.Area,
+        FotoPerfil = usuario.FotoPerfil,
+        Password = usuario.Password,
+        Activo = usuario.Activo
+    };
+
+    EsEdicion = true;
+    MostrarModal = true;
+}
+    private async Task ActualizarUsuario()
+    {
+        Console.WriteLine(
+            $"Usuario: {nuevoUsuario.UsuarioSistema} - Activo: {nuevoUsuario.Activo}");
+
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Where(x => x.Id == nuevoUsuario.Id)
+            .Update(nuevoUsuario);
+
+        MostrarModal = false;
+
+        EsEdicion = false;
+
+        await CargarUsuarios();
+    }
+    private async Task GuardarOActualizar()
+    {
+        if (EsEdicion)
+            await ActualizarUsuario();
+        else
+            await GuardarUsuario();
+    }
+    public bool Activo { get; set; }
+    private Usuario? usuarioEliminar;
+    private async Task EliminarUsuario()
+    {
+        if (usuarioEliminar is null)
+            return;
+
+        await SupabaseService.Client
+            .From<Usuario>()
+            .Where(x => x.Id == usuarioEliminar.Id)
+            .Delete();
+
+        MostrarEliminar = false;
+
+        usuarioEliminar = null;
+
+        await CargarUsuarios();
+    }
+    protected override void OnInitialized()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+    }
+}
+private void CerrarSesion()
+{
+    SesionService.UsuarioActual = new Usuario();
+
+    Nav.NavigateTo("/");
+}
+}

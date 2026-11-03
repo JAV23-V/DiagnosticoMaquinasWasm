@@ -1,0 +1,329 @@
+﻿@page "/diagnosticos/checklist/{DiagnosticoId:long}"
+@inject NavigationManager Nav
+@using Microsoft.AspNetCore.Components.Routing
+@using DiagnosticoMaquinasWasm.Services
+@inject SesionService SesionService
+@using DiagnosticoMaquinas.Models
+@inject SupabaseService SupabaseService
+
+
+@code {
+    [Parameter]
+    public long DiagnosticoId { get; set; }
+    private List<PuntoChecklist> puntos = new();
+private int TotalPuntos = 0;
+private int PuntosCompletados = 0;
+
+private int PorcentajeAvance =>
+    TotalPuntos == 0
+        ? 0
+        : (int)((PuntosCompletados * 100.0) / TotalPuntos);
+
+private async Task CargarAvance()
+{
+    var puntos = await SupabaseService.Client
+        .From<PuntoChecklist>()
+        .Get();
+
+    TotalPuntos = puntos.Models
+        .Count(x => x.Activo);
+
+    var hallazgos = await SupabaseService.Client
+        .From<Hallazgo>()
+        .Where(x => x.DiagnosticoId == DiagnosticoId)
+        .Get();
+
+    PuntosCompletados = hallazgos.Models
+        .Select(x => x.Punto)
+        .Distinct()
+        .Count();
+}
+protected override async Task OnInitializedAsync()
+{
+    if (SesionService.UsuarioActual.Id == 0)
+    {
+        Nav.NavigateTo("/");
+        return;
+    }
+await CargarCabecera();
+await CargarAvance();
+await CargarEstatus();
+await CargarChecklist();
+}
+    private void CerrarSesion()
+    {
+        SesionService.UsuarioActual = new Usuario();
+
+        Nav.NavigateTo("/");
+    }
+private string NombreMaquina = "";
+private string NumeroSerie = "";
+private string FechaDiagnostico = "";
+
+private async Task CargarCabecera()
+{
+    var diagnosticoResponse = await SupabaseService.Client
+        .From<Diagnostico>()
+        .Where(x => x.Id == DiagnosticoId)
+        .Get();
+
+    var diagnostico = diagnosticoResponse.Models.FirstOrDefault();
+
+    if (diagnostico == null)
+        return;
+
+    FechaDiagnostico = diagnostico.Fecha.ToString("dd/MM/yy");
+
+    var maquinaResponse = await SupabaseService.Client
+        .From<Maquina>()
+        .Where(x => x.Id == diagnostico.MaquinaId)
+        .Get();
+
+    var maquina = maquinaResponse.Models.FirstOrDefault();
+
+    if (maquina != null)
+    {
+        NombreMaquina = maquina.Nombre;
+        NumeroSerie = maquina.Serie;
+    }
+}
+private async Task CargarEstatus()
+{
+    var response = await SupabaseService.Client
+        .From<Hallazgo>()
+        .Where(x => x.DiagnosticoId == DiagnosticoId)
+        .Get();
+
+    EstatusPuntos = response.Models
+        .GroupBy(x => x.Punto)
+        .ToDictionary(
+            x => x.Key,
+            x => x.OrderByDescending(y => y.Id)
+                  .First()
+                  .Estatus
+        );
+}
+private string ObtenerEstatus(string codigo)
+{
+    if (EstatusPuntos.ContainsKey(codigo))
+    {
+        return EstatusPuntos[codigo];
+    }
+
+    return "Sin revisar";
+}
+private async Task CargarChecklist()
+{
+    var seccionesResponse = await SupabaseService.Client
+        .From<Seccion>()
+        .Get();
+
+    Secciones = seccionesResponse.Models
+        .Where(x => x.Activo)
+        .OrderBy(x => x.Id)
+        .ToList();
+
+    var puntosResponse = await SupabaseService.Client
+        .From<PuntoChecklist>()
+        .Get();
+
+    Puntos = puntosResponse.Models
+        .Where(x => x.Activo)
+        .OrderBy(x => x.Codigo)
+        .ToList();
+
+    foreach (var seccion in Secciones)
+    {
+        if (!SeccionesAbiertas.ContainsKey(seccion.Id))
+        {
+            SeccionesAbiertas.Add(seccion.Id, false);
+        }
+    }
+}
+private List<Seccion> Secciones = new();
+private List<PuntoChecklist> Puntos = new();
+private Dictionary<long, bool> SeccionesAbiertas = new();
+private Dictionary<string, string> EstatusPuntos = new();
+private string ObtenerClaseEstatus(string codigo)
+{
+    var estatus = ObtenerEstatus(codigo)
+        .Trim()
+        .ToLower();
+
+    return estatus switch
+    {
+        "ok" => "ok",
+        "ajustar" => "ajustar",
+        "reemplazar" => "reemplazar",
+        "reparar" => "reparar",
+        "limpiar" => "limpiar",
+        "calibrar" => "calibrar",
+        "n/a" => "na",
+        "sin revisar" => "pending",
+        _ => "pending"
+    };
+}
+}
+
+
+<div class="inicio-container">
+    <!-- SIDEBAR -->
+
+    <aside class="inicio-sidebar">
+        <div class="sidebar-top">
+            <h1>
+                DIAGNÓSTICO<br />
+                DE MÁQUINAS
+            </h1>
+            <hr class="menu-divider" />
+        </div>
+        <div class="sidebar-middle">
+
+            <nav>
+
+                <NavLink href="/diagnosticos/nuevo">
+                    📋 Nuevo Diagnóstico
+                </NavLink>
+
+                <NavLink href="/diagnosticos/{DiagnosticoId}/Checklist">
+                    ✅ Checklist
+                </NavLink>
+
+                <NavLink href="@($"/diagnosticos/resumen/{DiagnosticoId}")">
+                    📄 Resumen
+                </NavLink>
+
+            </nav>
+        </div>
+       <div class="sidebar-footer">
+
+        <div class="user-card"
+             @onclick='() => Nav.NavigateTo("/Usuarios")'>
+
+            @if (!string.IsNullOrWhiteSpace(SesionService.UsuarioActual.FotoPerfil))
+            {
+                <img src="@SesionService.UsuarioActual.FotoPerfil"
+                     class="sidebar-avatar" />
+            }
+            else
+            {
+                <img src="/Images/user-default.png"
+                     class="sidebar-avatar" />
+            }
+
+            <span>
+                @SesionService.UsuarioActual.NombreCompleto
+            </span>
+
+            <small>
+                @SesionService.UsuarioActual.Rol
+            </small>
+
+        </div>
+            <hr />
+<a class="logout-link"
+   @onclick="CerrarSesion">
+    Cerrar sesión
+</a>
+ </div>
+</aside>
+
+    <!-- titulo -->
+
+    <div class="inicio-content">
+
+        <div class="inicio-body">
+
+            <div class="checklist-card">
+                <div class="checklist-header">
+                    <div class="checklist-info">
+                        <h1>@NombreMaquina</h1>
+
+                        <span>Serie: @NumeroSerie</span>
+
+                        <span>@FechaDiagnostico</span>
+
+                    </div>
+
+                    <div class="checklist-progress">
+                        <label>Avance del Checklist</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill"
+                             style="width:@($"{PorcentajeAvance}%")">
+                        </div>
+                    </div>
+                        <span>@PorcentajeAvance%</span>
+                        <span>
+                            @PuntosCompletados / @TotalPuntos puntos
+                        </span>
+                    </div>
+                </div>
+<div class="checklist-section">
+
+    @foreach (var seccion in Secciones)
+    {
+        <div class="section-collapsed"
+             @onclick="() => SeccionesAbiertas[seccion.Id] = !SeccionesAbiertas[seccion.Id]">
+
+            <div class="section-left">
+
+                <span class="section-number">
+                    @seccion.Id
+                </span>
+
+                <span class="section-name">
+                    @seccion.Nombre
+                </span>
+
+            </div>
+
+            <div class="section-right">
+
+                <span class="section-status">
+                    Estatus
+                </span>
+
+                <span class="section-arrow">
+                    @(SeccionesAbiertas[seccion.Id] ? "▼" : "▶")
+                </span>
+
+            </div>
+
+        </div>
+
+        @if (SeccionesAbiertas[seccion.Id])
+        {
+            @foreach (var punto in Puntos.Where(x => x.SeccionId == seccion.Id))
+            {
+                <div class="check-item"
+                     @onclick='() => Nav.NavigateTo($"/diagnosticos/detalle/{DiagnosticoId}/{punto.Codigo}")'>
+
+                    <span>@punto.Codigo</span>
+
+                    <span>@punto.Nombre</span>
+
+                    <span class="status @ObtenerClaseEstatus(punto.Codigo)">
+                        @ObtenerEstatus(punto.Codigo)
+                    </span>
+
+                </div>
+            }
+        }
+    }
+
+</div>
+                    
+                    <div class="developed-by">
+
+            <img src="/Images/versigent-logo.png"
+class="versigent-logo" />
+    <span>
+        Desarrollado por IT OpEx - Ing Jennifer Valdes
+    </span>
+
+</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
