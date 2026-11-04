@@ -249,7 +249,16 @@ class="versigent-logo" />
 
         Puntos = response.Models
             .Where(x => x.Activo)
-            .OrderBy(x => x.Codigo)
+            .OrderBy(x =>
+            {
+                var partes = x.Codigo.Split('.');
+                return int.Parse(partes[0]);
+            })
+            .ThenBy(x =>
+            {
+                var partes = x.Codigo.Split('.');
+                return int.Parse(partes[1]);
+            })
             .Select(x => x.Codigo)
             .ToList();
     }
