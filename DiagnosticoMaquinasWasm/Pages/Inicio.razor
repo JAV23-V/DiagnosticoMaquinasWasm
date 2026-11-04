@@ -39,19 +39,19 @@
 
             <div class="cards-centro">
 
-                <div class="inicio-card" @onclick='() => Nav.NavigateTo("/diagnosticos/nuevo")'>
+                <div class="inicio-card" @onclick='() => Nav.NavigateTo("diagnosticos/nuevo")'>
                     <div class="card-icon">📋</div>
                     <h3>Nuevo Diagnóstico</h3>
                     <p>Iniciar un nuevo diagnóstico de maquina</p>
                 </div>
 
-                <div class="inicio-card" @onclick='() => Nav.NavigateTo("/acciones")'>
+                <div class="inicio-card" @onclick='() => Nav.NavigateTo("acciones")'>
                     <div class="card-icon">🔧</div>
                     <h3>Acciones Correctivas</h3>
                     <p>Ver y dar seguimiento a acciones</p>
                 </div>
 
-                <div class="inicio-card" @onclick='() => Nav.NavigateTo("/historial")'>
+                <div class="inicio-card" @onclick='() => Nav.NavigateTo("historial")'>
                     <div class="card-icon">📚</div>
                     <h3>Historial</h3>
                     <p>Consultar diagnósticos anteriores</p>
@@ -60,7 +60,7 @@
                 @if (SesionService.UsuarioActual.Rol == "Administrador" ||
      SesionService.UsuarioActual.Rol == "Supervisor")
             {
-                <div class="inicio-card"@onclick='() => Nav.NavigateTo("/dashboard")'>
+                <div class="inicio-card"@onclick='() => Nav.NavigateTo("dashboard")'>
                     <div class="card-icon">📊</div>
                     <h3>Dashboard</h3>
                     <p>Ver indicadores y estadísticas</p>
@@ -147,7 +147,7 @@
 
     <div class="developed-by">
 
-            <img src="/Images/versigent-logo.png"
+            <img src="Images/versigent-logo.png"
 class="versigent-logo" />
     <span>
         Desarrollado por IT OpEx - Ing Jennifer Valdes

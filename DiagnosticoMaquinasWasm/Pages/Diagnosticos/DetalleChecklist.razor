@@ -21,15 +21,15 @@
 
             <nav>
 
-                <NavLink href="/diagnosticos/nuevo">
+                <NavLink href="diagnosticos/nuevo">
                     📋 Nuevo Diagnóstico
                 </NavLink>
 
-                <NavLink href="@($"/diagnosticos/checklist/{DiagnosticoId}")">
+                <NavLink href="@($"diagnosticos/checklist/{DiagnosticoId}")">
                     ✅ Checklist
                 </NavLink>
 
-                <NavLink href="@($"/diagnosticos/resumen/{DiagnosticoId}")">
+                <NavLink href="@($"diagnosticos/resumen/{DiagnosticoId}")">
                     📄 Resumen
                 </NavLink>
 
@@ -38,7 +38,7 @@
        <div class="sidebar-footer">
 
         <div class="user-card"
-             @onclick='() => Nav.NavigateTo("/Usuarios")'>
+             @onclick='() => Nav.NavigateTo("Usuarios")'>
 
             @if (!string.IsNullOrWhiteSpace(SesionService.UsuarioActual.FotoPerfil))
             {
@@ -47,7 +47,7 @@
             }
             else
             {
-                <img src="/Images/user-default.png"
+                <img src="Images/user-default.png"
                      class="sidebar-avatar" />
             }
 
@@ -216,7 +216,7 @@
                 </div>
                     <div class="developed-by">
 
-            <img src="/Images/versigent-logo.png"
+            <img src="Images/versigent-logo.png"
 class="versigent-logo" />
     <span>
         Desarrollado por IT OpEx - Ing Jennifer Valdes

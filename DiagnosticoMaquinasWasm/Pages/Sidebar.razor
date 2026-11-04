@@ -20,26 +20,26 @@
 
             <nav>
 
-                <NavLink href="/inicio" Match="NavLinkMatch.All">
+                <NavLink href="inicio" Match="NavLinkMatch.All">
                     🏠 Inicio
                 </NavLink>
 
-                <NavLink href="/diagnosticos/nuevo">
+                <NavLink href="diagnosticos/nuevo">
                     📋 Nuevo Diagnóstico
                 </NavLink>
 
-                <NavLink href="/historial">
+                <NavLink href="historial">
                     📖 Historial
                 </NavLink>
 
-                <NavLink href="/acciones">
+                <NavLink href="acciones">
                     🔨 Acciones Correctivas
                 </NavLink>
 
 @if (SesionService.UsuarioActual.Rol == "Administrador" ||
      SesionService.UsuarioActual.Rol == "Supervisor")
             {
-                <NavLink href="/dashboard">
+                <NavLink href="dashboard">
                     📊 Dashboard
                 </NavLink>
             }
@@ -64,19 +64,19 @@
                     {
                         <div class="submenu-catalogos">
 
-                            <NavLink href="/Maquinas">
+                            <NavLink href="Maquinas">
                                 Máquinas
                             </NavLink>
 
-                            <NavLink href="/Secciones">
+                            <NavLink href="Secciones">
                                 Secciones
                             </NavLink>
 
-                            <NavLink href="/AccionesCatalogo">
+                            <NavLink href="AccionesCatalogo">
                                 Acciones
                             </NavLink>
 
-                            <NavLink href="/Tecnicos">
+                            <NavLink href="Tecnicos">
                                 Técnicos
                             </NavLink>
 
@@ -88,7 +88,7 @@
 
             @if (SesionService.UsuarioActual.Rol == "Administrador")
             {
-                <NavLink href="/configuracion">
+                <NavLink href="configuracion">
                     ⚙️ Configuración
                 </NavLink>
             }
@@ -100,7 +100,7 @@
        <div class="sidebar-footer">
 
         <div class="user-card"
-             @onclick='() => Nav.NavigateTo("/Usuarios")'>
+             @onclick='() => Nav.NavigateTo("Usuarios")'>
 
             @if (!string.IsNullOrWhiteSpace(SesionService.UsuarioActual.FotoPerfil))
             {
@@ -109,7 +109,7 @@
             }
             else
             {
-                <img src="/Images/user-default.png"
+                <img src="Images/user-default.png"
                      class="sidebar-avatar" />
             }
 
