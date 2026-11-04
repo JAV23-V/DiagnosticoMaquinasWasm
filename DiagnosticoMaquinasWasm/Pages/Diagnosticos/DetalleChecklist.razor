@@ -287,7 +287,7 @@ protected override async Task OnInitializedAsync()
 {
     if (SesionService.UsuarioActual.Id == 0)
     {
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("");
         return;
     }
 
@@ -304,7 +304,7 @@ protected override async Task OnInitializedAsync()
     {
         SesionService.UsuarioActual = new Usuario();
 
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("");
     }
     private Hallazgo nuevoHallazgo = new();
     private string EstatusSeleccionado = "";

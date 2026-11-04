@@ -42,7 +42,7 @@ protected override async Task OnInitializedAsync()
 {
     if (SesionService.UsuarioActual.Id == 0)
     {
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("");
         return;
     }
 await CargarCabecera();
@@ -54,7 +54,7 @@ await CargarChecklist();
     {
         SesionService.UsuarioActual = new Usuario();
 
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("");
     }
 private string NombreMaquina = "";
 private string NumeroSerie = "";

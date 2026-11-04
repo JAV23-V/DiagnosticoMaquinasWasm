@@ -241,13 +241,13 @@ private async Task CargarUsuario()
 {
     if (SesionService.UsuarioActual.Id == 0)
     {
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("");
     }
 }
 private void CerrarSesion()
 {
     SesionService.UsuarioActual = new Usuario();
 
-    Nav.NavigateTo("/");
+    Nav.NavigateTo("");
 }
 }

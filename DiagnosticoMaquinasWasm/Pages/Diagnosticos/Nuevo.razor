@@ -218,7 +218,7 @@ private void CerrarSesion()
 {
     SesionService.UsuarioActual = new Usuario();
 
-    Nav.NavigateTo("/");
+    Nav.NavigateTo("");
 }
     private Diagnostico nuevoDiagnostico = new();
 
@@ -262,7 +262,7 @@ private void CerrarSesion()
     {
         if (SesionService.UsuarioActual.Id == 0)
         {
-            Nav.NavigateTo("/");
+            Nav.NavigateTo("");
             return;
         }
 
