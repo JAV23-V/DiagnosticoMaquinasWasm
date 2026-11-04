@@ -1,4 +1,4 @@
-﻿@page "/diagnosticos/detalle/{DiagnosticoId:long}/{Codigo}"
+﻿@page "diagnosticos/detalle/{DiagnosticoId:long}/{Codigo}"
 @using Microsoft.AspNetCore.Components
 @inject NavigationManager Nav
 @using DiagnosticoMaquinas.Models
@@ -263,13 +263,13 @@ class="versigent-logo" />
         if (indice >= 0 && indice < Puntos.Count - 1)
         {
             Nav.NavigateTo(
-                $"/diagnosticos/detalle/{DiagnosticoId}/{Puntos[indice + 1]}"
+                $"diagnosticos/detalle/{DiagnosticoId}/{Puntos[indice + 1]}"
             );
         }
         else
         {
             Nav.NavigateTo(
-                $"/diagnosticos/resumen/{DiagnosticoId}"
+                $"diagnosticos/resumen/{DiagnosticoId}"
             );
         }
     }
@@ -280,7 +280,7 @@ class="versigent-logo" />
 
             if (indice > 0)
             {
-            Nav.NavigateTo($"/diagnosticos/detalle/{DiagnosticoId}/{Puntos[indice - 1]}");
+            Nav.NavigateTo($"diagnosticos/detalle/{DiagnosticoId}/{Puntos[indice - 1]}");
             }
         }
 protected override async Task OnInitializedAsync()

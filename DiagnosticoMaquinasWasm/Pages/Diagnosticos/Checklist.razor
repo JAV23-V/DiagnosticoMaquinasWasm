@@ -296,7 +296,7 @@ private string ObtenerClaseEstatus(string codigo)
             @foreach (var punto in Puntos.Where(x => x.SeccionId == seccion.Id))
             {
                 <div class="check-item"
-                     @onclick='() => Nav.NavigateTo($"/diagnosticos/detalle/{DiagnosticoId}/{punto.Codigo}")'>
+                     @onclick='() => Nav.NavigateTo($"diagnosticos/detalle/{DiagnosticoId}/{punto.Codigo}")'>
 
                     <span>@punto.Codigo</span>
 
