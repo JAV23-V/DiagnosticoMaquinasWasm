@@ -26,7 +26,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Publish
-        run: dotnet publish -c Release -o release
+        run: dotnet publish DiagnosticoMaquinasWasm/DiagnosticoMaquinasWasm.csproj -c Release -o release
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
